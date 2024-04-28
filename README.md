@@ -82,22 +82,22 @@ Features:
 
 ```
 # Simple query
-q select * where key ^= 'k'
+select * where key ^= 'k'
 
 # Projection and complex condition
-q select key, int(value) + 1 where key in ('k1', 'k2', 'k3') & is_int(value)
+select key, int(value) + 1 where key in ('k1', 'k2', 'k3') & is_int(value)
 
 # Aggregation query
-q select count(1), sum(int(value)) as sum, substr(key, 0, 2) as kprefix where key between 'k' and 'l' group by kprefix order by sum desc
+select count(1), sum(int(value)) as sum, substr(key, 0, 2) as kprefix where key between 'k' and 'l' group by kprefix order by sum desc
 
 # JSON access
-q select key, json(value)['x']['y'] where key ^= 'k' & int(json(value)['test']) >= 1
-q select key, json(value)['list'][1] where key ^= 'k'
+select key, json(value)['x']['y'] where key ^= 'k' & int(json(value)['test']) >= 1
+select key, json(value)['list'][1] where key ^= 'k'
 
 # Filter by field name defined in select statement
-q select key, int(value) as f1 where f1 > 10
-q select key, split(value) as f1 where 'a' in f1
-q select key, value, l2_distance(list(1,2,3,4), json(value)) as l2_dis where key ^= 'embedding_json' & l2_dis > 0.6 order by l2_dis desc limit 5
+select key, int(value) as f1 where f1 > 10
+select key, split(value) as f1 where 'a' in f1
+select key, value, l2_distance(list(1,2,3,4), json(value)) as l2_dis where key ^= 'embedding_json' & l2_dis > 0.6 order by l2_dis desc limit 5
 ```
 
 
