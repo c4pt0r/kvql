@@ -143,7 +143,15 @@ func (t *mockTxn) Put(key []byte, value []byte) error {
 	return nil
 }
 
+func (t *mockTxn) BatchPut(kvs []KVPair) error {
+	return nil
+}
+
 func (t *mockTxn) Delete(key []byte) error {
+	return nil
+}
+
+func (t *mockTxn) BatchDelete(key [][]byte) error {
 	return nil
 }
 
