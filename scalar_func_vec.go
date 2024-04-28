@@ -201,6 +201,18 @@ func funcSplitVec(chunk []KVPair, args []Expression, ctx *ExecuteCtx) ([]any, er
 	return values, nil
 }
 
+func funcJoinVec(chunk []KVPair, args []Expression, ctx *ExecuteCtx) ([]any, error) {
+	ret := make([]any, len(chunk))
+	for i := 0; i < len(chunk); i++ {
+		row, err := funcJoin(chunk[i], args, ctx)
+		if err != nil {
+			return nil, err
+		}
+		ret[i] = row
+	}
+	return ret, nil
+}
+
 func funcCosineDistanceVec(chunk []KVPair, args []Expression, ctx *ExecuteCtx) ([]any, error) {
 	largs, err := args[0].ExecuteBatch(chunk, ctx)
 	if err != nil {

@@ -164,6 +164,27 @@ func funcSplit(kv KVPair, args []Expression, ctx *ExecuteCtx) (any, error) {
 	return ret, nil
 }
 
+func funcJoin(kv KVPair, args []Expression, ctx *ExecuteCtx) (any, error) {
+	if args[0].ReturnType() != TSTR {
+		return nil, NewExecuteError(args[0].GetPos(), "join function first parameter require string type")
+	}
+	rseparator, err := args[0].Execute(kv, ctx)
+	if err != nil {
+		return nil, err
+	}
+	separator := toString(rseparator)
+	vals := make([]string, len(args)-1)
+	for i, arg := range args[1:] {
+		rval, err := arg.Execute(kv, ctx)
+		if err != nil {
+			return nil, err
+		}
+		vals[i] = toString(rval)
+	}
+	ret := strings.Join(vals, separator)
+	return ret, nil
+}
+
 func funcCosineDistance(kv KVPair, args []Expression, ctx *ExecuteCtx) (any, error) {
 	larg, err := args[0].Execute(kv, ctx)
 	if err != nil {

@@ -2,6 +2,8 @@ package kvql
 
 type Txn interface {
 	Get(key []byte) (value []byte, err error)
+	Put(key []byte, value []byte) error
+	Delete(key []byte) error
 	Cursor() (cursor Cursor, err error)
 }
 

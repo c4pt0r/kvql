@@ -139,6 +139,14 @@ func (t *mockTxn) Get(key []byte) ([]byte, error) {
 	return nil, nil
 }
 
+func (t *mockTxn) Put(key []byte, value []byte) error {
+	return nil
+}
+
+func (t *mockTxn) Delete(key []byte) error {
+	return nil
+}
+
 func (t *mockTxn) Cursor() (Cursor, error) {
 	return &mockSmokeCursor{
 		txn: t,

@@ -1,0 +1,92 @@
+package kvql
+
+import (
+	"fmt"
+	"strings"
+)
+
+type PutPlan struct {
+	Txn      Txn
+	KVPairs  []*PutKVPair
+	executed bool
+}
+
+func (p *PutPlan) Init() error {
+	p.executed = false
+	return nil
+}
+
+func (p *PutPlan) Explain() []string {
+	return []string{p.String()}
+}
+
+func (p *PutPlan) String() string {
+	kvps := make([]string, len(p.KVPairs))
+	for i, kvp := range p.KVPairs {
+		kvps[i] = kvp.String()
+	}
+	return fmt.Sprintf("PutPlan{KVPairs = [%s]}", strings.Join(kvps, ", "))
+}
+
+func (p *PutPlan) Next(ctx *ExecuteCtx) ([]Column, error) {
+	if !p.executed {
+		n, err := p.execute(ctx)
+		return []Column{n}, err
+	}
+	return nil, nil
+}
+
+func (p *PutPlan) Batch(ctx *ExecuteCtx) ([][]Column, error) {
+	if !p.executed {
+		n, err := p.execute(ctx)
+		row := []Column{n}
+		return [][]Column{row}, err
+	}
+	return nil, nil
+}
+
+func (p *PutPlan) FieldNameList() []string {
+	return []string{"Rows"}
+}
+
+func (p *PutPlan) FieldTypeList() []Type {
+	return []Type{TNUMBER}
+}
+
+func (p *PutPlan) processKVPair(ctx *ExecuteCtx, kvp *PutKVPair) ([]byte, []byte, error) {
+	ekvp := NewKVPStr("", "")
+	rkey, err := kvp.Key.Execute(ekvp, ctx)
+	if err != nil {
+		return nil, nil, err
+	}
+	key := []byte(toString(rkey))
+	ekvp.Key = key
+	rvalue, err := kvp.Value.Execute(ekvp, ctx)
+	if err != nil {
+		return nil, nil, err
+	}
+	value := []byte(toString(rvalue))
+	return key, value, nil
+}
+
+func (p *PutPlan) execute(ctx *ExecuteCtx) (int, error) {
+	count := 0
+	kvps := make([]KVPair, len(p.KVPairs))
+	for i, kvp := range p.KVPairs {
+		key, value, err := p.processKVPair(ctx, kvp)
+		if err != nil {
+			return count, err
+		}
+		kvps[i] = NewKVP(key, value)
+	}
+
+	for _, kv := range kvps {
+		err := p.Txn.Put(kv.Key, kv.Value)
+		if err != nil {
+			return count, err
+		}
+		count += 1
+	}
+	p.executed = true
+	return count, nil
+}

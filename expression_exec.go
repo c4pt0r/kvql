@@ -1,4 +1,4 @@
-package kvql
+package kvql 
 
 import (
 	"bytes"
@@ -543,6 +543,9 @@ func (e *FunctionCallExpr) executeFunc(kv KVPair, funcObj *Function, ctx *Execut
 	// Check arguments
 	if !funcObj.VarArgs && len(e.Args) != funcObj.NumArgs {
 		return nil, NewExecuteError(e.GetPos(), "Function %s require %d arguments but got %d", funcObj.Name, funcObj.NumArgs, len(e.Args))
+	}
+	if funcObj.VarArgs && len(e.Args) < funcObj.NumArgs {
+		return nil, NewExecuteError(e.GetPos(), "Function %s require at least %d arguments but got %d", funcObj.Name, funcObj.NumArgs, len(e.Args))
 	}
 	return funcObj.Body(kv, e.Args, ctx)
 }

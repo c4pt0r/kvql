@@ -1,8 +1,10 @@
 package kvql
 
+import "fmt"
+
 type Optimizer struct {
 	Query  string
-	stmt   *SelectStmt
+	stmt   Statement
 	filter *FilterExec
 }
 
@@ -19,22 +21,25 @@ func (o *Optimizer) init() error {
 		return err
 	}
 	o.stmt = stmt
-	o.optimizeExpressions()
-	o.filter = &FilterExec{
-		Ast: stmt.Where,
+	switch vstmt := stmt.(type) {
+	case *SelectStmt:
+		o.optimizeExpressions(vstmt)
+		o.filter = &FilterExec{
+			Ast: vstmt.Where,
+		}
 	}
 	return nil
 }
 
-func (o *Optimizer) optimizeExpressions() {
+func (o *Optimizer) optimizeExpressions(stmt *SelectStmt) {
 	eo := ExpressionOptimizer{
-		Root: o.stmt.Where.Expr,
+		Root: stmt.Where.Expr,
 	}
-	o.stmt.Where.Expr = eo.Optimize()
-	for i, field := range o.stmt.Fields {
+	stmt.Where.Expr = eo.Optimize()
+	for i, field := range stmt.Fields {
 		// fmt.Println("Before opt", field)
 		eo.Root = field
-		o.stmt.Fields[i] = eo.Optimize()
+		stmt.Fields[i] = eo.Optimize()
 		// fmt.Println("After opt", o.stmt.Fields[i])
 	}
 }
@@ -54,21 +59,21 @@ func (o *Optimizer) findAggrFunc(expr Expression) bool {
 	return false
 }
 
-func (o *Optimizer) buildFinalPlan(t Txn, fp Plan) (FinalPlan, error) {
+func (o *Optimizer) buildFinalPlan(t Txn, fp Plan, stmt *SelectStmt) (FinalPlan, error) {
 	hasAggr := false
 	aggrFields := 0
 	aggrAll := true
-	for _, field := range o.stmt.Fields {
+	for _, field := range stmt.Fields {
 		if o.findAggrFunc(field) {
 			hasAggr = true
 			aggrFields++
 		}
 	}
-	if o.stmt.GroupBy != nil && len(o.stmt.Fields) == len(o.stmt.GroupBy.Fields) {
+	if stmt.GroupBy != nil && len(stmt.Fields) == len(stmt.GroupBy.Fields) {
 		allInSelect := true
-		for _, gf := range o.stmt.GroupBy.Fields {
+		for _, gf := range stmt.GroupBy.Fields {
 			gfNameInSelect := false
-			for _, fn := range o.stmt.FieldNames {
+			for _, fn := range stmt.FieldNames {
 				if fn == gf.Name {
 					gfNameInSelect = true
 					break
@@ -82,27 +87,27 @@ func (o *Optimizer) buildFinalPlan(t Txn, fp Plan) (FinalPlan, error) {
 		hasAggr = allInSelect
 	}
 	var ffp FinalPlan
-	if !hasAggr && o.stmt.GroupBy != nil && len(o.stmt.GroupBy.Fields) > 0 {
-		return nil, NewSyntaxError(o.stmt.Pos, "No aggregate fields in select statement")
+	if !hasAggr && stmt.GroupBy != nil && len(stmt.GroupBy.Fields) > 0 {
+		return nil, NewSyntaxError(stmt.Pos, "No aggregate fields in select statement")
 	}
 	if !hasAggr {
 		ffp = &ProjectionPlan{
 			Txn:        t,
 			ChildPlan:  fp,
-			AllFields:  o.stmt.AllFields,
-			FieldNames: o.stmt.FieldNames,
-			FieldTypes: o.stmt.FieldTypes,
-			Fields:     o.stmt.Fields,
+			AllFields:  stmt.AllFields,
+			FieldNames: stmt.FieldNames,
+			FieldTypes: stmt.FieldTypes,
+			Fields:     stmt.Fields,
 		}
 
 		// Build order
-		if o.stmt.Order != nil {
-			ffp = o.buildFinalOrderPlan(t, ffp, false)
+		if stmt.Order != nil {
+			ffp = o.buildFinalOrderPlan(t, ffp, false, stmt)
 		}
 
 		// Build limit
-		if o.stmt.Limit != nil {
-			ffp = o.buildFinalLimitPlan(t, ffp)
+		if stmt.Limit != nil {
+			ffp = o.buildFinalLimitPlan(t, ffp, stmt)
 		}
 
 		return ffp, nil
@@ -113,45 +118,45 @@ func (o *Optimizer) buildFinalPlan(t Txn, fp Plan) (FinalPlan, error) {
 	start := 0
 	doNotBuildLimit := false
 	// no order by only has limit
-	if o.stmt.Limit != nil && o.stmt.Order == nil {
+	if stmt.Limit != nil && stmt.Order == nil {
 		doNotBuildLimit = true
-		start = o.stmt.Limit.Start
-		limit = o.stmt.Limit.Count
+		start = stmt.Limit.Start
+		limit = stmt.Limit.Count
 	}
 	var groupByFields []GroupByField = nil
-	if o.stmt.GroupBy != nil {
-		groupByFields = o.stmt.GroupBy.Fields
+	if stmt.GroupBy != nil {
+		groupByFields = stmt.GroupBy.Fields
 		aggrAll = false
 	} else {
 		aggrAll = true
 	}
 
 	if aggrFields == 0 && len(groupByFields) > 0 {
-		return nil, NewSyntaxError(o.stmt.Pos, "No aggregate fields in select statement")
+		return nil, NewSyntaxError(stmt.Pos, "No aggregate fields in select statement")
 	}
 
-	if aggrFields+len(groupByFields) < len(o.stmt.Fields) {
-		return nil, NewSyntaxError(o.stmt.GroupBy.Pos, "Missing aggregate fields in group by statement")
+	if aggrFields+len(groupByFields) < len(stmt.Fields) {
+		return nil, NewSyntaxError(stmt.GroupBy.Pos, "Missing aggregate fields in group by statement")
 	}
 
 	ffp = &AggregatePlan{
 		Txn:           t,
 		ChildPlan:     fp,
 		AggrAll:       aggrAll,
-		FieldNames:    o.stmt.FieldNames,
-		FieldTypes:    o.stmt.FieldTypes,
-		Fields:        o.stmt.Fields,
+		FieldNames:    stmt.FieldNames,
+		FieldTypes:    stmt.FieldTypes,
+		Fields:        stmt.Fields,
 		GroupByFields: groupByFields,
 		Limit:         limit,
 		Start:         start,
 	}
 
-	if o.stmt.Order != nil {
-		ffp = o.buildFinalOrderPlan(t, ffp, true)
+	if stmt.Order != nil {
+		ffp = o.buildFinalOrderPlan(t, ffp, true, stmt)
 	}
 
-	if o.stmt.Limit != nil && !doNotBuildLimit {
-		ffp = o.buildFinalLimitPlan(t, ffp)
+	if stmt.Limit != nil && !doNotBuildLimit {
+		ffp = o.buildFinalLimitPlan(t, ffp, stmt)
 	}
 	return ffp, nil
 }
@@ -161,7 +166,43 @@ func (o *Optimizer) buildPlan(t Txn) (FinalPlan, error) {
 	if err != nil {
 		return nil, err
 	}
+	switch stmt := o.stmt.(type) {
+	case *SelectStmt:
+		return o.buildSelectPlan(t, stmt)
+	case *PutStmt:
+		return o.buildPutPlan(t, stmt)
+	case *RemoveStmt:
+		return o.buildRemovePlan(t, stmt)
+	default:
+		return nil, fmt.Errorf("Cannot build query plan without a select statement")
+	}
+}
 
+func (o *Optimizer) buildPutPlan(t Txn, stmt *PutStmt) (FinalPlan, error) {
+	plan := &PutPlan{
+		Txn:     t,
+		KVPairs: stmt.KVPairs,
+	}
+	err := plan.Init()
+	if err != nil {
+		return nil, err
+	}
+	return plan, nil
+}
+
+func (o *Optimizer) buildRemovePlan(t Txn, stmt *RemoveStmt) (FinalPlan, error) {
+	plan := &RemovePlan{
+		Txn:  t,
+		Keys: stmt.Keys,
+	}
+	err := plan.Init()
+	if err != nil {
+		return nil, err
+	}
+	return plan, nil
+}
+
+func (o *Optimizer) buildSelectPlan(t Txn, stmt *SelectStmt) (FinalPlan, error) {
 	// Build Scan
 	fp := o.buildScanPlan(t)
 
@@ -169,7 +210,7 @@ func (o *Optimizer) buildPlan(t Txn) (FinalPlan, error) {
 	// ignore order and limit plan just return
 	// the projection plan with empty result plan
 	if _, ok := fp.(*EmptyResultPlan); ok {
-		ret, err := o.buildFinalPlan(t, fp)
+		ret, err := o.buildFinalPlan(t, fp, stmt)
 		if err != nil {
 			return nil, err
 		}
@@ -180,7 +221,7 @@ func (o *Optimizer) buildPlan(t Txn) (FinalPlan, error) {
 		return ret, nil
 	}
 
-	ret, err := o.buildFinalPlan(t, fp)
+	ret, err := o.buildFinalPlan(t, fp, stmt)
 	if err != nil {
 		return nil, err
 	}
@@ -199,20 +240,20 @@ func (o *Optimizer) BuildPlan(t Txn) (FinalPlan, error) {
 	return ret, nil
 }
 
-func (o *Optimizer) buildFinalLimitPlan(t Txn, ffp FinalPlan) FinalPlan {
+func (o *Optimizer) buildFinalLimitPlan(t Txn, ffp FinalPlan, stmt *SelectStmt) FinalPlan {
 	return &FinalLimitPlan{
 		Txn:        t,
-		Start:      o.stmt.Limit.Start,
-		Count:      o.stmt.Limit.Count,
+		Start:      stmt.Limit.Start,
+		Count:      stmt.Limit.Count,
 		FieldNames: ffp.FieldNameList(),
 		FieldTypes: ffp.FieldTypeList(),
 		ChildPlan:  ffp,
 	}
 }
 
-func (o *Optimizer) buildFinalOrderPlan(t Txn, ffp FinalPlan, hasAggr bool) FinalPlan {
-	if !hasAggr && len(o.stmt.Order.Orders) == 1 {
-		order := o.stmt.Order.Orders[0]
+func (o *Optimizer) buildFinalOrderPlan(t Txn, ffp FinalPlan, hasAggr bool, stmt *SelectStmt) FinalPlan {
+	if !hasAggr && len(stmt.Order.Orders) == 1 {
+		order := stmt.Order.Orders[0]
 		switch expr := order.Field.(type) {
 		case *FieldExpr:
 			// If order by key asc just ignore it
@@ -223,7 +264,7 @@ func (o *Optimizer) buildFinalOrderPlan(t Txn, ffp FinalPlan, hasAggr bool) Fina
 	}
 	return &FinalOrderPlan{
 		Txn:        t,
-		Orders:     o.stmt.Order.Orders,
+		Orders:     stmt.Order.Orders,
 		FieldNames: ffp.FieldNameList(),
 		FieldTypes: ffp.FieldTypeList(),
 		ChildPlan:  ffp,

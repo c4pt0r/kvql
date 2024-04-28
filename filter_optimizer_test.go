@@ -8,10 +8,11 @@ import (
 
 func optimizeQuery(query string) (*ScanType, error) {
 	p := NewParser(query)
-	stmt, err := p.Parse()
+	gstmt, err := p.Parse()
 	if err != nil {
 		return nil, err
 	}
+	stmt := gstmt.(*SelectStmt)
 	o := NewFilterOptimizer(stmt.Where, nil, nil)
 	ret := o.optimizeExpr(stmt.Where.Expr)
 	return ret, nil

@@ -158,6 +158,7 @@ var (
 	_ FinalPlan = (*AggregatePlan)(nil)
 	_ FinalPlan = (*FinalOrderPlan)(nil)
 	_ FinalPlan = (*FinalLimitPlan)(nil)
+	_ FinalPlan = (*PutPlan)(nil)
 )
 
 type Column any

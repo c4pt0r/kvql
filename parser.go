@@ -655,15 +655,138 @@ func (p *Parser) parseOrderBy(selStmt *SelectStmt) (*OrderStmt, error) {
 	return ret, nil
 }
 
-func (p *Parser) Parse() (*SelectStmt, error) {
+func (p *Parser) parsePutKVPair() (*PutKVPair, error) {
+	var (
+		err   error
+		key   Expression
+		value Expression
+	)
+	err = p.expect(&Token{Tp: LPAREN, Data: "("})
+	if err != nil {
+		return nil, err
+	}
+	key, err = p.parseExpr()
+	if err != nil {
+		return nil, err
+	}
+	if p.tok.Tp == SEP && p.tok.Data == "," {
+		// Correct
+		p.next()
+	} else {
+		return nil, NewSyntaxError(p.tok.Pos, "Put key-value pair expect `,` but got %s", p.tok.Data)
+	}
+	value, err = p.parseExpr()
+	if err != nil {
+		return nil, err
+	}
+	err = p.expect(&Token{Tp: RPAREN, Data: ")"})
+	if err != nil {
+		return nil, err
+	}
+	return &PutKVPair{Key: key, Value: value}, nil
+}
+
+func (p *Parser) parsePut() (*PutStmt, error) {
+	var (
+		pos     = p.tok.Pos
+		kvpairs = []*PutKVPair{}
+		err     error
+	)
+	err = p.expect(&Token{Tp: PUT, Data: "put"})
+	if err != nil {
+		return nil, err
+	}
+	for p.tok != nil {
+		kvp, err := p.parsePutKVPair()
+		if err != nil {
+			return nil, err
+		}
+		kvpairs = append(kvpairs, kvp)
+		if p.tok == nil {
+			break
+		}
+		err = p.expect(&Token{Tp: SEP, Data: ","})
+		if err != nil {
+			return nil, err
+		}
+	}
+	stmt := &PutStmt{
+		Pos:     pos,
+		KVPairs: kvpairs,
+	}
+	checkCtx := &CheckCtx{
+		NotAllowValue: true,
+	}
+	err = stmt.Validate(checkCtx)
+	return stmt, err
+}
+
+func (p *Parser) parseRemove() (Statement, error) {
+	var (
+		pos  = p.tok.Pos
+		keys = []Expression{}
+		err  error
+	)
+	err = p.expect(&Token{Tp: REMOVE, Data: "remove"})
+	if err != nil {
+		return nil, err
+	}
+	for p.tok != nil {
+		kexpr, err := p.parseExpr()
+		if err != nil {
+			return nil, err
+		}
+		keys = append(keys, kexpr)
+		if p.tok == nil {
+			break
+		}
+		err = p.expect(&Token{Tp: SEP, Data: ","})
+		if err != nil {
+			return nil, err
+		}
+	}
+	stmt := &RemoveStmt{
+		Pos:  pos,
+		Keys: keys,
+	}
+	checkCtx := &CheckCtx{
+		NotAllowKey:   true,
+		NotAllowValue: true,
+	}
+	err = stmt.Validate(checkCtx)
+	return stmt, err
+}
+
+func (p *Parser) trimEndSemis() {
+	semis := 0
+	for i := p.numToks - 1; i > 0; i-- {
+		if tok := p.toks[i]; tok.Tp == SEMI {
+			semis++
+		} else {
+			break
+		}
+	}
+	if semis > 0 {
+		p.toks = p.toks[:p.numToks-semis]
+		p.numToks -= semis
+	}
+}
+
+func (p *Parser) Parse() (Statement, error) {
+	p.trimEndSemis()
 	if p.numToks == 0 {
 		return nil, NewSyntaxError(-1, "Expect select or where keyword")
 	}
 	p.next()
 	if p.tok == nil {
 		return nil, NewSyntaxError(-1, "Expect select or where keyword")
-	} else if p.tok.Tp != WHERE && p.tok.Tp != SELECT {
-		return nil, NewSyntaxError(p.tok.Pos, "Expect select or where keyword")
+	} else {
+		switch p.tok.Tp {
+		case WHERE, SELECT, PUT, REMOVE:
+			break
+		default:
+			return nil, NewSyntaxError(p.tok.Pos, "Expect put, select or where keyword")
+		}
 	}
 	var (
 		selectStmt  *SelectStmt  = nil
@@ -674,7 +797,11 @@ func (p *Parser) Parse() (*SelectStmt, error) {
 		wherePos    int
 	)
 
-	if p.tok.Tp == SELECT {
+	if p.tok.Tp == PUT {
+		return p.parsePut()
+	} else if p.tok.Tp == REMOVE {
+		return p.parseRemove()
+	} else if p.tok.Tp == SELECT {
 		selectStmt, err = p.parseSelect()
 		if err != nil {
 			return nil, err

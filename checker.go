@@ -226,6 +226,12 @@ func (e *BinaryOpExpr) checkWithBetween(ctx *CheckCtx) error {
 }
 
 func (e *FieldExpr) Check(ctx *CheckCtx) error {
+	if e.Field == KeyKW && ctx.NotAllowKey {
+		return NewSyntaxError(e.Pos, "not allow key keyword in expression")
+	}
+	if e.Field == ValueKW && ctx.NotAllowValue {
+		return NewSyntaxError(e.Pos, "not allow value keyword in expression")
+	}
 	return nil
 }
 

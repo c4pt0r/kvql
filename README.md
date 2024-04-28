@@ -69,6 +69,19 @@ FieldAccessExpression ::= "[" String "]" |
                           "[" Number "]"
 ```
 
+Put Statement:
+
+```
+PutStmt ::= "PUT" KVPair (, KVPair)*
+KVPair ::= "(" Expression, Expression ")"
+```
+
+Remove Statement:
+
+```
+RemoveStmt ::= "REMOVE" Expression (, Expression)*
+```
+
 Features:
 
 1. Scan ranger optimize: EmptyResult, PrefixScan, RangeScan, MultiGet
@@ -98,6 +111,9 @@ select key, json(value)['list'][1] where key ^= 'k'
 select key, int(value) as f1 where f1 > 10
 select key, split(value) as f1 where 'a' in f1
 select key, value, l2_distance(list(1,2,3,4), json(value)) as l2_dis where key ^= 'embedding_json' & l2_dis > 0.6 order by l2_dis desc limit 5
+
+# Put data
+put ('k1', 'v1'), ('k2', upper('v' + key))
 ```
 
 

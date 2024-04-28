@@ -35,6 +35,9 @@ const (
 	AND      TokenType = 24
 	LBRACK   TokenType = 25
 	RBRACK   TokenType = 26
+	PUT      TokenType = 27
+	REMOVE   TokenType = 28
+	SEMI     TokenType = 29
 )
 
 var (
@@ -65,6 +68,9 @@ var (
 		AND:      "AND",
 		LBRACK:   "[",
 		RBRACK:   "]",
+		PUT:      "PUT",
+		REMOVE:   "REMOVE",
+		SEMI:     "SEMI",
 	}
 )
 
@@ -312,7 +318,7 @@ func (l *Lexer) Split() []*Token {
 			tokLen = 0
 			tokStartPos = i + 1
 			tokStart = i + 1
-		case ',':
+		case ',', ';':
 			if strStart {
 				tokLen++
 				break
@@ -322,10 +328,19 @@ func (l *Lexer) Split() []*Token {
 			if token != nil {
 				ret = append(ret, token)
 			}
-			token = &Token{
-				Tp:   SEP,
-				Data: ",",
-				Pos:  i,
+			switch char {
+			case ',':
+				token = &Token{
+					Tp:   SEP,
+					Data: string(char),
+					Pos:  i,
+				}
+			case ';':
+				token = &Token{
+					Tp:   SEMI,
+					Data: string(char),
+					Pos:  i,
+				}
 			}
 			ret = append(ret, token)
 			tokLen = 0
@@ -413,6 +428,12 @@ func buildToken(curr string, pos int) *Token {
 		return token
 	case "between":
 		token.Tp = OPERATOR
+		return token
+	case "put":
+		token.Tp = PUT
+		return token
+	case "remove":
+		token.Tp = REMOVE
 		return token
 	default:
 		if isNumber(curr) {

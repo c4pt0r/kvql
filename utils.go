@@ -13,8 +13,9 @@ func BuildExecutor(query string) (*SelectStmt, *FilterExec, error) {
 	if err != nil {
 		return nil, nil, err
 	}
-	return expr, &FilterExec{
-		Ast: expr.Where,
+	vexpr := expr.(*SelectStmt)
+	return vexpr, &FilterExec{
+		Ast: vexpr.Where,
 	}, nil
 }
 

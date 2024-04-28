@@ -140,9 +140,11 @@ var (
 )
 
 type CheckCtx struct {
-	Fields     []Expression
-	FieldNames []string
-	FieldTypes []Type
+	Fields        []Expression
+	FieldNames    []string
+	FieldTypes    []Type
+	NotAllowKey   bool
+	NotAllowValue bool
 }
 
 func (c *CheckCtx) GetNamedExpr(name string) (Expression, bool) {

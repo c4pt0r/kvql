@@ -31,6 +31,14 @@ func (t *mockQueryTxn) Get(key []byte) ([]byte, error) {
 	return nil, nil
 }
 
+func (t *mockQueryTxn) Put(key []byte, value []byte) error {
+	return nil
+}
+
+func (t *mockQueryTxn) Delete(key []byte) error {
+	return nil
+}
+
 func (t *mockQueryTxn) Cursor() (Cursor, error) {
 	return &mockCursor{
 		data:   t.data,

@@ -1,5 +1,20 @@
 package kvql
 
+import "fmt"
+
+var (
+	_ Statement = (*WhereStmt)(nil)
+	_ Statement = (*OrderStmt)(nil)
+	_ Statement = (*GroupByStmt)(nil)
+	_ Statement = (*LimitStmt)(nil)
+	_ Statement = (*PutStmt)(nil)
+	_ Statement = (*RemoveStmt)(nil)
+)
+
+type Statement interface {
+	Name() string
+}
+
 type SelectStmt struct {
 	Pos        int
 	AllFields  bool
@@ -12,9 +27,17 @@ type SelectStmt struct {
 	GroupBy    *GroupByStmt
 }
 
+func (s *SelectStmt) Name() string {
+	return "SELECT"
+}
+
 type WhereStmt struct {
 	Pos  int
 	Expr Expression
+}
+
+func (s *WhereStmt) Name() string {
+	return "WHERE"
 }
 
 type OrderField struct {
@@ -28,6 +51,10 @@ type OrderStmt struct {
 	Orders []OrderField
 }
 
+func (s *OrderStmt) Name() string {
+	return "ORDER BY"
+}
+
 type GroupByField struct {
 	Name string
 	Expr Expression
@@ -38,10 +65,89 @@ type GroupByStmt struct {
 	Fields []GroupByField
 }
 
+func (s *GroupByStmt) Name() string {
+	return "GROUP BY"
+}
+
 type LimitStmt struct {
 	Pos   int
 	Start int
 	Count int
+}
+
+func (s *LimitStmt) Name() string {
+	return "LIMIT"
+}
+
+type PutKVPair struct {
+	Key   Expression
+	Value Expression
+}
+
+func (p *PutKVPair) String() string {
+	return fmt.Sprintf("{%s: %s}", p.Key.String(), p.Value.String())
+}
+
+type PutStmt struct {
+	Pos     int
+	KVPairs []*PutKVPair
+}
+
+func (s *PutStmt) Name() string {
+	return "PUT"
+}
+
+type RemoveStmt struct {
+	Pos  int
+	Keys []Expression
+}
+
+func (s *RemoveStmt) Name() string {
+	return "REMOVE"
+}
+
+func (s *RemoveStmt) Validate(ctx *CheckCtx) error {
+	for _, expr := range s.Keys {
+		rtype := expr.ReturnType()
+		if rtype != TSTR && rtype != TNUMBER {
+			return NewSyntaxError(expr.GetPos(), "need str or number type")
+		}
+		if err := expr.Check(ctx); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (s *PutStmt) Validate(ctx *CheckCtx) error {
+	for _, kv := range s.KVPairs {
+		if err := s.validateKVPair(kv, ctx); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (s *PutStmt) validateKVPair(kv *PutKVPair, ctx *CheckCtx) error {
+	if err := kv.Key.Check(ctx); err != nil {
+		return err
+	}
+	switch kv.Key.ReturnType() {
+	case TSTR, TNUMBER:
+		break
+	default:
+		return NewSyntaxError(kv.Key.GetPos(), "need str or number type")
+	}
+	if err := kv.Value.Check(ctx); err != nil {
+		return err
+	}
+	switch kv.Value.ReturnType() {
+	case TSTR, TNUMBER:
+		break
+	default:
+		return NewSyntaxError(kv.Value.GetPos(), "need str or number type")
+	}
+	return nil
 }
 
 func (s *SelectStmt) ValidateFields(ctx *CheckCtx) error {

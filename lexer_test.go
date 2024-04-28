@@ -139,3 +139,30 @@ func TestLexer15(t *testing.T) {
 		fmt.Printf("%s\n", t.String())
 	}
 }
+
+func TestLexer16(t *testing.T) {
+	query := "insert ('k1', 'v1')"
+	l := NewLexer(query)
+	toks := l.Split()
+	for _, t := range toks {
+		fmt.Printf("%s\n", t.String())
+	}
+}
+
+func TestLexer17(t *testing.T) {
+	query := "insert ('k1', 'v1'), ('k2', 'v2'), ('k3', upper('v3'))"
+	l := NewLexer(query)
+	toks := l.Split()
+	for _, t := range toks {
+		fmt.Printf("%s\n", t.String())
+	}
+}
+
+func TestLexer18(t *testing.T) {
+	query := "remove 'k1', 'k2'"
+	l := NewLexer(query)
+	toks := l.Split()
+	for _, t := range toks {
+		fmt.Printf("%s\n", t.String())
+	}
+}
