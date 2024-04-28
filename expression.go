@@ -40,6 +40,8 @@ const (
 	Lte         Operator = 15
 	In          Operator = 16
 	Between     Operator = 17
+	KWAnd       Operator = 18
+	KWOr        Operator = 19
 
 	TUNKNOWN Type = 0
 	TBOOL    Type = 1
@@ -74,6 +76,8 @@ var (
 		Lte:         "<=",
 		In:          "in",
 		Between:     "between",
+		KWAnd:       "and",
+		KWOr:        "or",
 	}
 
 	StringToOperator = map[string]Operator{
@@ -94,6 +98,8 @@ var (
 		"<=":      Lte,
 		"in":      In,
 		"between": Between,
+		"and":     KWAnd,
+		"or":      KWOr,
 	}
 )
 
@@ -194,7 +200,7 @@ func (e *BinaryOpExpr) GetPos() int {
 
 func (e *BinaryOpExpr) ReturnType() Type {
 	switch e.Op {
-	case And, Or, Not, Eq, NotEq, PrefixMatch, RegExpMatch, Gt, Gte, Lt, Lte, In, Between:
+	case And, Or, Not, Eq, NotEq, PrefixMatch, RegExpMatch, Gt, Gte, Lt, Lte, In, Between, KWAnd, KWOr:
 		return TBOOL
 	case Sub, Mul, Div:
 		return TNUMBER

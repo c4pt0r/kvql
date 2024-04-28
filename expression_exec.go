@@ -1,4 +1,4 @@
-package kvql 
+package kvql
 
 import (
 	"bytes"
@@ -85,9 +85,9 @@ func (e *BinaryOpExpr) Execute(kv KVPair, ctx *ExecuteCtx) (any, error) {
 		return e.execPrefixMatch(kv, ctx)
 	case RegExpMatch:
 		return e.execRegexpMatch(kv, ctx)
-	case And:
+	case And, KWAnd:
 		return e.execAnd(kv, ctx)
-	case Or:
+	case Or, KWOr:
 		return e.execOr(kv, ctx)
 	case Add:
 		if e.Left.ReturnType() == TSTR {

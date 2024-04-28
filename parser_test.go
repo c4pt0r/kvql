@@ -413,3 +413,21 @@ func TestParser37(t *testing.T) {
 		fmt.Printf("[%d] %v\n", i, k.String())
 	}
 }
+
+func TestParser38(t *testing.T) {
+	query := "select * where key = 'k1' and key = 'k2'"
+	expr, err := parseQuery(query)
+	if err != nil {
+		t.Fatal(err)
+	}
+	fmt.Printf("%+v\n", expr.Where.Expr.String())
+}
+
+func TestParser39(t *testing.T) {
+	query := "select * where key = 'k1' or key between 'k3' and 'k4'"
+	expr, err := parseQuery(query)
+	if err != nil {
+		t.Fatal(err)
+	}
+	fmt.Printf("%+v\n", expr.Where.Expr.String())
+}

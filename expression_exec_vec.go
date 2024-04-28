@@ -95,9 +95,9 @@ func (e *BinaryOpExpr) ExecuteBatch(chunk []KVPair, ctx *ExecuteCtx) ([]any, err
 		return e.execPrefixMatchBatch(chunk, ctx)
 	case RegExpMatch:
 		return e.execRegexpMatchBatch(chunk, ctx)
-	case And:
+	case And, KWAnd:
 		return e.execAndOrBatch(chunk, true, ctx)
-	case Or:
+	case Or, KWOr:
 		return e.execAndOrBatch(chunk, false, ctx)
 	case Add:
 		if e.Left.ReturnType() == TSTR {

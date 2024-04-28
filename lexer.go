@@ -38,6 +38,7 @@ const (
 	PUT      TokenType = 27
 	REMOVE   TokenType = 28
 	SEMI     TokenType = 29
+	OR       TokenType = 30
 )
 
 var (
@@ -71,6 +72,7 @@ var (
 		PUT:      "PUT",
 		REMOVE:   "REMOVE",
 		SEMI:     "SEMI",
+		OR:       "OR",
 	}
 )
 
@@ -95,9 +97,9 @@ func (t *Token) Precedence() int {
 	switch t.Tp {
 	case OPERATOR:
 		switch t.Data {
-		case "|":
+		case "|", "or":
 			return 1
-		case "&":
+		case "&", "and":
 			return 2
 		case "=", "!=", "^=", "~=", ">", ">=", "<", "<=", "in", "between":
 			return 3
@@ -434,6 +436,12 @@ func buildToken(curr string, pos int) *Token {
 		return token
 	case "remove":
 		token.Tp = REMOVE
+		return token
+	case "and":
+		token.Tp = OPERATOR
+		return token
+	case "or":
+		token.Tp = OPERATOR
 		return token
 	default:
 		if isNumber(curr) {
