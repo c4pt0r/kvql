@@ -191,6 +191,25 @@ func TestOptimizers(t *testing.T) {
 			"select * where key between 'k1' and 'k2'",
 			RANGE, []string{"k1", "k2"},
 		},
+		// and operator
+		optTData{
+			"select * where key = 'k1' and key = 'k2'",
+			EMPTY, nil,
+		},
+		// or operator
+		optTData{
+			"select * where key = 'k1' or key between 'k2' and 'k3'",
+			RANGE, []string{"k1", "k3"},
+		},
+		optTData{
+			"select * where key = 'k1' or key ='k2'",
+			MGET, []string{"k1", "k2"},
+		},
+		// Mix and, or keywords
+		optTData{
+			"select * where (key > 'k1' and key < 'k9') or (key = 'j1' or key = 'm1')",
+			FULL, nil,
+		},
 	}
 
 	for i, item := range tdata {

@@ -262,7 +262,7 @@ func (p *Parser) parseBetween(pos int, oprec int) (Expression, error) {
 	if err != nil {
 		return nil, err
 	}
-	err = p.expect(&Token{Tp: NAME, Data: "and"})
+	err = p.expect(&Token{Tp: OPERATOR, Data: "and"})
 	if err != nil {
 		return nil, err
 	}
@@ -785,7 +785,7 @@ func (p *Parser) Parse() (Statement, error) {
 		case WHERE, SELECT, PUT, REMOVE:
 			break
 		default:
-			return nil, NewSyntaxError(p.tok.Pos, "Expect put, select or where keyword")
+			return nil, NewSyntaxError(p.tok.Pos, "Expect put, remove, select or where keyword")
 		}
 	}
 	var (

@@ -31,6 +31,7 @@ func (p *PutPlan) String() string {
 func (p *PutPlan) Next(ctx *ExecuteCtx) ([]Column, error) {
 	if !p.executed {
 		n, err := p.execute(ctx)
+		p.executed = true
 		return []Column{n}, err
 	}
 	return nil, nil
@@ -39,6 +40,7 @@ func (p *PutPlan) Next(ctx *ExecuteCtx) ([]Column, error) {
 func (p *PutPlan) Batch(ctx *ExecuteCtx) ([][]Column, error) {
 	if !p.executed {
 		n, err := p.execute(ctx)
+		p.executed = true
 		row := []Column{n}
 		return [][]Column{row}, err
 	}
@@ -70,23 +72,29 @@ func (p *PutPlan) processKVPair(ctx *ExecuteCtx, kvp *PutKVPair) ([]byte, []byte
 }
 
 func (p *PutPlan) execute(ctx *ExecuteCtx) (int, error) {
-	count := 0
-	kvps := make([]KVPair, len(p.KVPairs))
+	nkvps := len(p.KVPairs)
+	kvps := make([]KVPair, nkvps)
 	for i, kvp := range p.KVPairs {
 		key, value, err := p.processKVPair(ctx, kvp)
 		if err != nil {
-			return count, err
+			return 0, err
 		}
 		kvps[i] = NewKVP(key, value)
 	}
 
-	for _, kv := range kvps {
-		err := p.Txn.Put(kv.Key, kv.Value)
+	if nkvps == 0 {
+		return 0, nil
+	} else if nkvps == 1 {
+		err := p.Txn.Put(kvps[0].Key, kvps[0].Value)
 		if err != nil {
-			return count, err
+			return 0, err
 		}
-		count += 1
+		return 1, nil
+	} else {
+		err := p.Txn.BatchPut(kvps)
+		if err != nil {
+			return 0, err
+		}
+		return nkvps, nil
 	}
-	p.executed = true
-	return count, nil
 }

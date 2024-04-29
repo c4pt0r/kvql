@@ -98,9 +98,9 @@ func (o *FilterOptimizer) optimizeExpr(expr Expression) *ScanType {
 	switch e := expr.(type) {
 	case *BinaryOpExpr:
 		switch e.Op {
-		case And:
+		case And, KWAnd:
 			return o.optimizeAndExpr(e)
-		case Or:
+		case Or, KWOr:
 			return o.optimizeOrExpr(e)
 		case PrefixMatch:
 			// It may use PREFIX or FULL

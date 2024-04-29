@@ -31,6 +31,7 @@ func (p *RemovePlan) String() string {
 func (p *RemovePlan) Next(ctx *ExecuteCtx) ([]Column, error) {
 	if !p.executed {
 		n, err := p.execute(ctx)
+		p.executed = true
 		return []Column{n}, err
 	}
 	return nil, nil
@@ -39,6 +40,7 @@ func (p *RemovePlan) Next(ctx *ExecuteCtx) ([]Column, error) {
 func (p *RemovePlan) Batch(ctx *ExecuteCtx) ([][]Column, error) {
 	if !p.executed {
 		n, err := p.execute(ctx)
+		p.executed = true
 		row := []Column{n}
 		return [][]Column{row}, err
 	}
@@ -63,24 +65,30 @@ func (p *RemovePlan) processKey(ekvp KVPair, ctx *ExecuteCtx, kexpr Expression) 
 }
 
 func (p *RemovePlan) execute(ctx *ExecuteCtx) (int, error) {
-	count := 0
-	keys := make([][]byte, len(p.Keys))
+	nks := len(p.Keys)
+	keys := make([][]byte, nks)
 	ekvp := NewKVPStr("", "")
 	for i, kexpr := range p.Keys {
 		key, err := p.processKey(ekvp, ctx, kexpr)
 		if err != nil {
-			return count, err
+			return 0, err
 		}
 		keys[i] = key
 	}
 
-	for _, key := range keys {
-		err := p.Txn.Delete(key)
+	if nks == 0 {
+		return 0, nil
+	} else if nks == 1 {
+		err := p.Txn.Delete(keys[0])
 		if err != nil {
-			return count, err
+			return 0, err
 		}
-		count += 1
+		return 1, nil
+	} else {
+		err := p.Txn.BatchDelete(keys)
+		if err != nil {
+			return 0, err
+		}
+		return nks, nil
 	}
-	p.executed = true
-	return count, nil
 }

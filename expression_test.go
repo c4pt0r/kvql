@@ -35,7 +35,15 @@ func (t *mockQueryTxn) Put(key []byte, value []byte) error {
 	return nil
 }
 
+func (t *mockQueryTxn) BatchPut(kvs []KVPair) error {
+	return nil
+}
+
 func (t *mockQueryTxn) Delete(key []byte) error {
+	return nil
+}
+
+func (t *mockQueryTxn) BatchDelete(key [][]byte) error {
 	return nil
 }
 
