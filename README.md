@@ -48,7 +48,7 @@ BinaryExpression ::= Expression Operator Expression |
 
 Operator ::= MathOperator | CompareOperator | AndOrOperator
 
-AndOrOperator ::= "&" | "|"
+AndOrOperator ::= "&" | "|" | "AND" | "OR"
 
 MathOperator ::= "+" | "-" | "*" | "/"
 
@@ -94,7 +94,7 @@ Features:
 ## Examples:
 
 ```
-# Simple query
+# Simple query, get all the key-value pairs with key prefix 'k'
 select * where key ^= 'k'
 
 # Projection and complex condition
