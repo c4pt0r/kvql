@@ -123,6 +123,9 @@ func (p *Parser) parseBinaryExpr(x Expression, prec1 int) (Expression, error) {
 		)
 		switch opTok.Data {
 		case "in":
+			if p.tok == nil {
+				return nil, NewSyntaxError(-1, "Unexpected EOF")
+			}
 			// If `(` just parse list expression
 			// else just continue to parse as normal expression
 			if p.tok.Tp == LPAREN {
@@ -669,6 +672,9 @@ func (p *Parser) parsePutKVPair() (*PutKVPair, error) {
 	if err != nil {
 		return nil, err
 	}
+	if p.tok == nil {
+		return nil, NewSyntaxError(-1, "Unexpected EOF")
+	}
 	if p.tok.Tp == SEP && p.tok.Data == "," {
 		// Correct
 		p.next()
@@ -767,12 +773,14 @@ func (p *Parser) parseDelete() (Statement, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	whereTok := p.tok
 	err = p.expect(&Token{Tp: WHERE, Data: "where"})
 	if err != nil {
 		return nil, err
 	}
 	whereStmt := &WhereStmt{
-		Pos:  p.tok.Pos,
+		Pos:  whereTok.Pos,
 		Expr: nil,
 	}
 	wexpr, err := p.parseExpr()
@@ -825,11 +833,11 @@ func (p *Parser) trimEndSemis() {
 func (p *Parser) Parse() (Statement, error) {
 	p.trimEndSemis()
 	if p.numToks == 0 {
-		return nil, NewSyntaxError(-1, "Expect select or where keyword")
+		return nil, NewSyntaxError(-1, "Expect put, remove, delete, select or where keyword")
 	}
 	p.next()
 	if p.tok == nil {
-		return nil, NewSyntaxError(-1, "Expect select or where keyword")
+		return nil, NewSyntaxError(-1, "Expect put, remove, delete, select or where keyword")
 	} else {
 		switch p.tok.Tp {
 		case WHERE, SELECT, PUT, REMOVE, DELETE:
