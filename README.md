@@ -133,7 +133,7 @@ delete where key ^= 'prefix' and value ~= '^val_' limit 10
 
 First implements interfaces defined in `kv.go`:
 
-```
+```golang
 type Txn interface {
 	Get(key []byte) (value []byte, err error)
 	Put(key []byte, value []byte) error
@@ -151,7 +151,7 @@ type Cursor interface {
 
 Then execute query:
 
-```
+```golang
 var (
     query string = "select * where key ^= 'k'"
     txn kvql.Txn = buildClientTxn()
@@ -178,3 +178,68 @@ for {
     }
 }
 ```
+
+## Operators and Functions
+
+### Operators
+
+**Conparation operators**
+
+* `=`: bytes level equals
+* `!=`: bytes level not equals
+* `^=`: prefix match
+* `~=`: regexp match
+* `>`: number or string greater than
+* `>=`: number or string greater or equals than
+* `<`: number or string less than
+* `<=`: number or string less or equals than
+* `BETWEEN x AND y`: great or equals than `x` and less or equals than `y`
+* `IN (...)`: in list followed by `in` operator
+
+**Logical operators**
+
+* `&`, `AND`: logical and
+* `|`, `OR`: logical or
+* `!`: logical not
+
+**Math operators**
+
+* `+`: number add or string concate
+* `-`: number subtraction
+* `*`: number multiply
+* `/`: number division
+
+### Scalar Functions
+
+| Function | Description |
+| -------- | ----------- |
+| lower(value: str): str | convert value string into lower case |
+| upper(value: str): str | convert value string into upper case |
+| int(value: any): int | convert value into integer, if cannot convert to integer just return error
+| float(value: any): float | convert value into float, if cannot convert to float just return error |
+| str(value: any): str | convert value into string |
+| is_int(value: any): bool | return is value can be converted into integer |
+| is_float(value: any): bool | return is value can be converted into float |
+| substr(value: str, start: int, end: int): str | return substring of value from `start` position to `end` position |
+| split(value: str, spliter: str): list | split value into a string list by spliter string |
+| list(elem1: any, elem2: any...): list | convert many elements into a list, list elements' type must be same, the list type support `int`, `str`, `float` types |
+| float_list(elem1: float, elem2: float...): list | convert many float elements into a list |
+| flist(elem1: float, elem2: float...): list | same as float_list |
+| int_list(elem1: int, elem2: int...): list | convert many integer elements into a list |
+| ilist(elem1: int, elem2: int...): list | same as int_list |
+| len(value: list): int | return value list length |
+| l2_distance(left: list, right: list): float | calculate l2 distance of two list |
+| cosine_distance(left: list, right: list): float | calculate cosine distance of two list |
+| json(value: str): json | parse string value into json type |
+| join(seperator: str, val1: any, val2: any...): str | join values by seperator |
+
+### Aggregation Functions
+
+| Function | Description |
+| -------- | ----------- |
+| count(value: int): int | Count value by group |
+| sum(value: int): int | Sum value by group |
+| avg(value: int): int | Calculate average value by group |
+| min(value: int): int | Find the minimum value by group |
+| max(value: int): int | Find the maxmum value by group |
+| quantile(value: float, percent: float): float | Calculate the Quantile by group |
