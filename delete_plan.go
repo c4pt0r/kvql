@@ -55,6 +55,7 @@ func (p *DeletePlan) Batch(ctx *ExecuteCtx) ([][]Column, error) {
 func (p *DeletePlan) execute(ctx *ExecuteCtx) (int, error) {
 	count := 0
 	for {
+		ctx.Clear()
 		rows, err := p.ChildPlan.Batch(ctx)
 		if err != nil {
 			return count, err
