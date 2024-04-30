@@ -1,6 +1,6 @@
-# kvql 
+# kvql
 
-A SQL-like query language on general Key-Value DB 
+A SQL-like query language on general Key-Value DB
 
 ## Syntax
 
@@ -82,6 +82,12 @@ Remove Statement:
 RemoveStmt ::= "REMOVE" Expression (, Expression)*
 ```
 
+Delete Statement:
+
+```
+DeleteStmt ::= "DELETE" "WHERE" WhereConditions ("LIMIT" LimitParameter)?
+```
+
 Features:
 
 1. Scan ranger optimize: EmptyResult, PrefixScan, RangeScan, MultiGet
@@ -114,10 +120,61 @@ select key, value, l2_distance(list(1,2,3,4), json(value)) as l2_dis where key ^
 
 # Put data
 put ('k1', 'v1'), ('k2', upper('v' + key))
+
+# Remove data
+remove 'k1', 'k2'
+
+# Delete data by filter and limit delete rows
+delete where key ^= 'prefix' and value ~= '^val_' limit 10
 ```
 
 
 ## How to use this library
 
+First implements interfaces defined in `kv.go`:
+
 ```
+type Txn interface {
+	Get(key []byte) (value []byte, err error)
+	Put(key []byte, value []byte) error
+	BatchPut(kvs []KVPair) error
+	Delete(key []byte) error
+	BatchDelete(keys [][]byte) error
+	Cursor() (cursor Cursor, err error)
+}
+
+type Cursor interface {
+	Seek(prefix []byte) error
+	Next() (key []byte, value []byte, err error)
+}
+```
+
+Then execute query:
+
+```
+var (
+    query string = "select * where key ^= 'k'"
+    txn kvql.Txn = buildClientTxn()
+)
+
+optimizer := kvql.NewOptimizer(query)
+plan, err := opt.BuildPlan(txn)
+if err != nil {
+    fatal(err)
+}
+
+execCtx := kvql.NewExecuteCtx()
+for {
+    rows, err := plan.Batch(execCtx)
+    if err != nil {
+        fatal(err)
+    }
+    if len(rows) == 0 {
+        break
+    }
+    execCtx.Clear()
+    for _, cols := range rows {
+        // Process columns...
+    }
+}
 ```

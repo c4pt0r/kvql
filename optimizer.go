@@ -23,7 +23,12 @@ func (o *Optimizer) init() error {
 	o.stmt = stmt
 	switch vstmt := stmt.(type) {
 	case *SelectStmt:
-		o.optimizeExpressions(vstmt)
+		o.optimizeSelectExpressions(vstmt)
+		o.filter = &FilterExec{
+			Ast: vstmt.Where,
+		}
+	case *DeleteStmt:
+		o.optimizeDeleteExpressions(vstmt)
 		o.filter = &FilterExec{
 			Ast: vstmt.Where,
 		}
@@ -31,7 +36,14 @@ func (o *Optimizer) init() error {
 	return nil
 }
 
-func (o *Optimizer) optimizeExpressions(stmt *SelectStmt) {
+func (o *Optimizer) optimizeDeleteExpressions(stmt *DeleteStmt) {
+	eo := ExpressionOptimizer{
+		Root: stmt.Where.Expr,
+	}
+	stmt.Where.Expr = eo.Optimize()
+}
+
+func (o *Optimizer) optimizeSelectExpressions(stmt *SelectStmt) {
 	eo := ExpressionOptimizer{
 		Root: stmt.Where.Expr,
 	}
@@ -173,6 +185,8 @@ func (o *Optimizer) buildPlan(t Txn) (FinalPlan, error) {
 		return o.buildPutPlan(t, stmt)
 	case *RemoveStmt:
 		return o.buildRemovePlan(t, stmt)
+	case *DeleteStmt:
+		return o.buildDeletePlan(t, stmt)
 	default:
 		return nil, fmt.Errorf("Cannot build query plan without a select statement")
 	}
@@ -200,6 +214,47 @@ func (o *Optimizer) buildRemovePlan(t Txn, stmt *RemoveStmt) (FinalPlan, error) 
 		return nil, err
 	}
 	return plan, nil
+}
+
+func (o *Optimizer) buildDeletePlan(t Txn, stmt *DeleteStmt) (FinalPlan, error) {
+	var err error
+	// Build Scan
+	fp := o.buildScanPlan(t)
+
+	// Just build an empyt result plan so we can
+	// ignore limit plan just return the delete plan
+	// with empty result plan directly
+	if _, ok := fp.(*EmptyResultPlan); ok {
+		delPlan := &DeletePlan{
+			Txn:       t,
+			ChildPlan: fp,
+		}
+		err = delPlan.Init()
+		if err != nil {
+			return nil, err
+		}
+		return delPlan, nil
+	}
+
+	delPlan := &DeletePlan{
+		Txn:       t,
+		ChildPlan: fp,
+	}
+
+	if stmt.Limit != nil {
+		limitPlan := &LimitPlan{
+			Txn:       t,
+			Start:     stmt.Limit.Start,
+			Count:     stmt.Limit.Count,
+			ChildPlan: fp,
+		}
+		delPlan.ChildPlan = limitPlan
+	}
+	err = delPlan.Init()
+	if err != nil {
+		return nil, err
+	}
+	return delPlan, nil
 }
 
 func (o *Optimizer) buildSelectPlan(t Txn, stmt *SelectStmt) (FinalPlan, error) {

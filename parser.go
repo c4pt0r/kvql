@@ -757,6 +757,56 @@ func (p *Parser) parseRemove() (Statement, error) {
 	return stmt, err
 }
 
+func (p *Parser) parseDelete() (Statement, error) {
+	var (
+		pos       = p.tok.Pos
+		err       error
+		limitStmt *LimitStmt = nil
+	)
+	err = p.expect(&Token{Tp: DELETE, Data: "delete"})
+	if err != nil {
+		return nil, err
+	}
+	err = p.expect(&Token{Tp: WHERE, Data: "where"})
+	if err != nil {
+		return nil, err
+	}
+	whereStmt := &WhereStmt{
+		Pos:  p.tok.Pos,
+		Expr: nil,
+	}
+	wexpr, err := p.parseExpr()
+	if err != nil {
+		return nil, err
+	}
+	whereStmt.Expr = wexpr
+	if p.tok != nil {
+		switch p.tok.Tp {
+		case LIMIT:
+			if limitStmt != nil {
+				return nil, NewSyntaxError(p.tok.Pos, "Duplicate limit expression")
+			}
+			limitStmt, err = p.parseLimit()
+			if err != nil {
+				return nil, err
+			}
+		default:
+			return nil, NewSyntaxError(p.tok.Pos, "Missing operator")
+		}
+	}
+	if p.tok != nil {
+		return nil, NewSyntaxError(p.tok.Pos, "Has more expression")
+	}
+	deleteStmt := &DeleteStmt{
+		Pos:   pos,
+		Where: whereStmt,
+		Limit: limitStmt,
+	}
+	checkCtx := &CheckCtx{}
+	err = deleteStmt.Validate(checkCtx)
+	return deleteStmt, err
+}
+
 func (p *Parser) trimEndSemis() {
 	semis := 0
 	for i := p.numToks - 1; i > 0; i-- {
@@ -782,10 +832,10 @@ func (p *Parser) Parse() (Statement, error) {
 		return nil, NewSyntaxError(-1, "Expect select or where keyword")
 	} else {
 		switch p.tok.Tp {
-		case WHERE, SELECT, PUT, REMOVE:
+		case WHERE, SELECT, PUT, REMOVE, DELETE:
 			break
 		default:
-			return nil, NewSyntaxError(p.tok.Pos, "Expect put, remove, select or where keyword")
+			return nil, NewSyntaxError(p.tok.Pos, "Expect put, remove, delete, select or where keyword")
 		}
 	}
 	var (
@@ -801,6 +851,8 @@ func (p *Parser) Parse() (Statement, error) {
 		return p.parsePut()
 	} else if p.tok.Tp == REMOVE {
 		return p.parseRemove()
+	} else if p.tok.Tp == DELETE {
+		return p.parseDelete()
 	} else if p.tok.Tp == SELECT {
 		selectStmt, err = p.parseSelect()
 		if err != nil {

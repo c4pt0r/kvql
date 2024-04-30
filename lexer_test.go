@@ -166,3 +166,12 @@ func TestLexer18(t *testing.T) {
 		fmt.Printf("%s\n", t.String())
 	}
 }
+
+func TestLexer19(t *testing.T) {
+	query := "delete where key ^= 'kp' and value ^= 'v_' "
+	l := NewLexer(query)
+	toks := l.Split()
+	for _, t := range toks {
+		fmt.Printf("%s\n", t.String())
+	}
+}
