@@ -106,6 +106,16 @@ func (s *RemoveStmt) Name() string {
 	return "REMOVE"
 }
 
+type DeleteStmt struct {
+	Pos   int
+	Where *WhereStmt
+	Limit *LimitStmt
+}
+
+func (s *DeleteStmt) Name() string {
+	return "DELETE"
+}
+
 func (s *RemoveStmt) Validate(ctx *CheckCtx) error {
 	for _, expr := range s.Keys {
 		rtype := expr.ReturnType()
@@ -148,6 +158,10 @@ func (s *PutStmt) validateKVPair(kv *PutKVPair, ctx *CheckCtx) error {
 		return NewSyntaxError(kv.Value.GetPos(), "need str or number type")
 	}
 	return nil
+}
+
+func (s *DeleteStmt) Validate(ctx *CheckCtx) error {
+	return s.Where.Expr.Check(ctx)
 }
 
 func (s *SelectStmt) ValidateFields(ctx *CheckCtx) error {

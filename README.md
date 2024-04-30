@@ -48,7 +48,7 @@ BinaryExpression ::= Expression Operator Expression |
 
 Operator ::= MathOperator | CompareOperator | AndOrOperator
 
-AndOrOperator ::= "&" | "|"
+AndOrOperator ::= "&" | "AND" | "|" | "OR"
 
 MathOperator ::= "+" | "-" | "*" | "/"
 
@@ -80,6 +80,12 @@ Remove Statement:
 
 ```
 RemoveStmt ::= "REMOVE" Expression (, Expression)*
+```
+
+Delete Statement:
+
+```
+DeleteStmt ::= "DELETE" "WHERE" WhereConditions ("LIMIT" LimitParameter)?
 ```
 
 Features:

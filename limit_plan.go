@@ -131,3 +131,121 @@ func (p *FinalLimitPlan) FieldNameList() []string {
 func (p *FinalLimitPlan) FieldTypeList() []Type {
 	return p.FieldTypes
 }
+
+type LimitPlan struct {
+	Txn       Txn
+	Start     int
+	Count     int
+	current   int
+	skips     int
+	ChildPlan Plan
+}
+
+func (p *LimitPlan) Init() error {
+	p.current = 0
+	p.skips = 0
+	return p.ChildPlan.Init()
+}
+
+func (p *LimitPlan) String() string {
+	return fmt.Sprintf("LimitPlan{Start = %d, Count = %d}", p.Start, p.Count)
+}
+
+func (p *LimitPlan) Explain() []string {
+	ret := []string{p.String()}
+	for _, plan := range p.ChildPlan.Explain() {
+		ret = append(ret, plan)
+	}
+	return ret
+}
+
+func (p *LimitPlan) Next(ctx *ExecuteCtx) ([]byte, []byte, error) {
+	for p.skips < p.Start {
+		key, value, err := p.ChildPlan.Next(ctx)
+		if err != nil {
+			return nil, nil, err
+		}
+		if key == nil && value == nil && err == nil {
+			return nil, nil, nil
+		}
+		p.skips++
+	}
+	if p.current >= p.Count {
+		return nil, nil, nil
+	}
+	k, v, err := p.ChildPlan.Next(ctx)
+	if err != nil {
+		return nil, nil, err
+	}
+	if k == nil && v == nil && err == nil {
+		return nil, nil, nil
+	}
+	p.current++
+	return k, v, nil
+}
+
+func (p *LimitPlan) Batch(ctx *ExecuteCtx) ([]KVPair, error) {
+	var (
+		rows   []KVPair
+		ret    = make([]KVPair, 0, PlanBatchSize)
+		err    error
+		finish = false
+		count  = 0
+	)
+	for p.skips < p.Start {
+		restSkips := p.Start - p.skips
+		rows, err = p.ChildPlan.Batch(ctx)
+		if err != nil {
+			return nil, err
+		}
+		nrows := len(rows)
+		if nrows == 0 {
+			return nil, nil
+		}
+		if nrows <= restSkips {
+			p.skips += nrows
+		} else {
+			p.skips += restSkips
+			rows = rows[restSkips:]
+			// Skip finish break it OK
+			break
+		}
+	}
+	if len(rows) > 0 {
+		for _, row := range rows {
+			if p.current >= p.Count {
+				break
+			}
+			ret = append(ret, row)
+			count++
+			p.current++
+		}
+	}
+	if p.current >= p.Count {
+		return ret, nil
+	}
+	for !finish {
+		rows, err = p.ChildPlan.Batch(ctx)
+		if err != nil {
+			return nil, err
+		}
+		if len(rows) == 0 {
+			finish = true
+			break
+		}
+		for _, row := range rows {
+			ret = append(ret, row)
+			count++
+			p.current++
+			if p.current >= p.Count {
+				finish = true
+				break
+			}
+		}
+		if count >= PlanBatchSize {
+			finish = true
+			break
+		}
+	}
+	return ret, nil
+}

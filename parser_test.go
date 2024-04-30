@@ -32,6 +32,15 @@ func parseRemoveQuery(query string) (*RemoveStmt, error) {
 	return nil, err
 }
 
+func parseDeleteQuery(query string) (*DeleteStmt, error) {
+	p := NewParser(query)
+	expr, err := p.Parse()
+	if expr != nil {
+		return expr.(*DeleteStmt), err
+	}
+	return nil, err
+}
+
 func TestParser1(t *testing.T) {
 	query := "where key = 'test' & value = 'value'"
 	expr, err := parseQuery(query)
@@ -426,6 +435,15 @@ func TestParser38(t *testing.T) {
 func TestParser39(t *testing.T) {
 	query := "select * where key = 'k1' or key between 'k3' and 'k4'"
 	expr, err := parseQuery(query)
+	if err != nil {
+		t.Fatal(err)
+	}
+	fmt.Printf("%+v\n", expr.Where.Expr.String())
+}
+
+func TestParser40(t *testing.T) {
+	query := "delete where key = 'k1' or key between 'k3' and 'k4'"
+	expr, err := parseDeleteQuery(query)
 	if err != nil {
 		t.Fatal(err)
 	}

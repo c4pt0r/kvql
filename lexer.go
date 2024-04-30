@@ -39,6 +39,7 @@ const (
 	REMOVE   TokenType = 28
 	SEMI     TokenType = 29
 	OR       TokenType = 30
+	DELETE   TokenType = 31
 )
 
 var (
@@ -73,6 +74,7 @@ var (
 		REMOVE:   "REMOVE",
 		SEMI:     "SEMI",
 		OR:       "OR",
+		DELETE:   "DELETE",
 	}
 )
 
@@ -442,6 +444,9 @@ func buildToken(curr string, pos int) *Token {
 		return token
 	case "or":
 		token.Tp = OPERATOR
+		return token
+	case "delete":
+		token.Tp = DELETE
 		return token
 	default:
 		if isNumber(curr) {
