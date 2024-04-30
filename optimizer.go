@@ -280,6 +280,10 @@ func (o *Optimizer) buildSelectPlan(t Txn, stmt *SelectStmt) (FinalPlan, error) 
 	if err != nil {
 		return nil, err
 	}
+	err = ret.Init()
+	if err != nil {
+		return nil, err
+	}
 	return ret, nil
 }
 
