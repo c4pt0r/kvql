@@ -97,6 +97,10 @@ Features:
 5. Support hash aggregate plan
 6. Support JSON and field access expression
 
+## Known User
+
+- [c4pt0r/tcli](https://github.com/c4pt0r/tcli) CLI tool for TiKV
+
 ## Examples:
 
 ```
