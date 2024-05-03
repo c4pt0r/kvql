@@ -161,7 +161,7 @@ var (
     txn kvql.Txn = buildClientTxn()
 )
 
-optimizer := kvql.NewOptimizer(query)
+opt := kvql.NewOptimizer(query)
 plan, err := opt.BuildPlan(txn)
 if err != nil {
     fatal(err)
@@ -181,6 +181,29 @@ for {
         // Process columns...
     }
 }
+```
+
+To get better error report, you can conver the error to `QueryBinder` and set the origin query like below:
+
+```golang
+...
+opt := kvql.NewOptimizer(query)
+plan, err := opt.BuildPlan(txn)
+if err != nil {
+	if qerr, ok := err.(kvql.QueryBinder); ok {
+		qerr.BindQuery(query)
+	}
+	fmt.Printf("Error: %s\n", err.Error())
+}
+...
+```
+
+After bind the query to error it will output error result like:
+
+```
+Error: select * where key ^= 'asdf' and val ^= 'test'
+                                        ^--
+       Syntax Error: ^= operator with invalid left expression
 ```
 
 ## Operators and Functions
