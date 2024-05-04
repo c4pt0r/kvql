@@ -10,27 +10,36 @@ var (
 	_ error       = (*ExecuteError)(nil)
 	_ QueryBinder = (*SyntaxError)(nil)
 	_ QueryBinder = (*ExecuteError)(nil)
+
+	DefaultErrorPadding = 7
 )
 
 type QueryBinder interface {
 	BindQuery(query string)
+	SetPadding(pad int)
 }
 
 type SyntaxError struct {
 	Query   string
 	Message string
 	Pos     int
+	Padding int
 }
 
 func NewSyntaxError(pos int, msg string, args ...any) error {
 	return &SyntaxError{
 		Message: fmt.Sprintf(msg, args...),
 		Pos:     pos,
+		Padding: DefaultErrorPadding,
 	}
 }
 
 func (e *SyntaxError) BindQuery(query string) {
 	e.Query = query
+}
+
+func (e *SyntaxError) SetPadding(pad int) {
+	e.Padding = pad
 }
 
 func (e *SyntaxError) Error() string {
@@ -41,8 +50,9 @@ func (e *SyntaxError) Error() string {
 }
 
 func (e *SyntaxError) queryError() string {
-	ret := outputQueryAndErrPos(e.Query, e.Pos, 7)
-	ret += fmt.Sprintf("       Syntax Error: %s", e.Message)
+	ret := outputQueryAndErrPos(e.Query, e.Pos, e.Padding)
+	pad := generatePads(e.Padding)
+	ret += fmt.Sprintf("%sSyntax Error: %s", pad, e.Message)
 	return ret
 }
 
@@ -54,17 +64,23 @@ type ExecuteError struct {
 	Query   string
 	Message string
 	Pos     int
+	Padding int
 }
 
 func NewExecuteError(pos int, msg string, args ...any) error {
 	return &ExecuteError{
 		Pos:     pos,
 		Message: fmt.Sprintf(msg, args...),
+		Padding: DefaultErrorPadding,
 	}
 }
 
 func (e *ExecuteError) BindQuery(query string) {
 	e.Query = query
+}
+
+func (e *ExecuteError) SetPadding(pad int) {
+	e.Padding = pad
 }
 
 func (e *ExecuteError) Error() string {
@@ -79,8 +95,17 @@ func (e *ExecuteError) simpleError() string {
 }
 
 func (e *ExecuteError) queryError() string {
-	ret := outputQueryAndErrPos(e.Query, e.Pos, 7)
-	ret += fmt.Sprintf("Execute Error: %s", e.Message)
+	ret := outputQueryAndErrPos(e.Query, e.Pos, e.Padding)
+	pad := generatePads(e.Padding)
+	ret += fmt.Sprintf("%sExecute Error: %s", pad, e.Message)
+	return ret
+}
+
+func generatePads(pad int) string {
+	ret := ""
+	for i := 0; i < pad; i++ {
+		ret += " "
+	}
 	return ret
 }
 
