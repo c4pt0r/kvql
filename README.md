@@ -206,6 +206,8 @@ Error: select * where key ^= 'asdf' and val ^= 'test'
        Syntax Error: ^= operator with invalid left expression
 ```
 
+About padding: user can use `kvql.DefaultErrorPadding` to change the default left padding spaces. Or can use `kvql.QueryBinder.SetPadding` function to change specify error's padding.
+
 ## Operators and Functions
 
 ### Operators
