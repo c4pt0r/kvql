@@ -148,7 +148,11 @@ func (o *Optimizer) buildFinalPlan(t Txn, fp Plan, stmt *SelectStmt) (FinalPlan,
 	}
 
 	if aggrFields+len(groupByFields) < len(stmt.Fields) {
-		return nil, NewSyntaxError(stmt.GroupBy.Pos, "Missing aggregate fields in group by statement")
+		if stmt.GroupBy != nil {
+			return nil, NewSyntaxError(stmt.GroupBy.Pos, "Missing aggregate fields in group by statement")
+		} else {
+			return nil, NewSyntaxError(-1, "Missing group by statement")
+		}
 	}
 
 	ffp = &AggregatePlan{
