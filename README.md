@@ -201,12 +201,39 @@ if err != nil {
 After bind the query to error it will output error result like:
 
 ```
-Error: select * where key ^= 'asdf' and val ^= 'test'
-                                        ^--
-       Syntax Error: ^= operator with invalid left expression
+padding                    query
+v-----vv--------------------------------------------v
+Error: select * where key ^= 'asdf' and val ^= 'test'          < query line
+                                        ^--                    < error position
+       Syntax Error: ^= operator with invalid left expression  < error message
 ```
 
-About padding: user can use `kvql.DefaultErrorPadding` to change the default left padding spaces. Or can use `kvql.QueryBinder.SetPadding` function to change specify error's padding.
+About padding: user can use `kvql.DefaultErrorPadding` to change the default left padding spaces. Or can use `kvql.QueryBinder.SetPadding` function to change specify error's padding. The default padding is 7 space characters (length of `Error: `).
+
+If you want to display the plan tree, like `EXPLAIN` statement in SQL, the `kvql.FinalPlan.Explain` function will return the plan tree in a string list, you can use below code to format the explain output:
+
+```golang
+...
+opt := kvql.NewOptimizer(query)
+plan, err := opt.BuildPlan(txn)
+if err != nil {
+	fatal(err)
+}
+
+output := ""
+for i, plan := range plan.Explain() {
+	padding := ""
+	for x := 0; x < i*3; x++ {
+		padding += " "
+	}
+	if i == 0 {
+		output += fmt.Sprintf("%s%s\n", padding, plan)
+	} else {
+		output += fmt.Sprintf("%s`-%s\n", padding, plan)
+	}
+}
+fmt.Println(output)
+```
 
 ## Operators and Functions
 
