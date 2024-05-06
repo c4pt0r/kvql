@@ -254,6 +254,7 @@ func (o *Optimizer) canOptimizeDeletePlanToRemovePlan(mgPlan *MultiGetPlan) bool
 		}
 		return true
 	})
+	// For safety, if filter expressions has `and` operator it should not optimize to remove plan
 	if hasAndOp {
 		return false
 	}
@@ -281,6 +282,7 @@ func (o *Optimizer) buildDeletePlan(t Txn, stmt *DeleteStmt) (FinalPlan, error) 
 	}
 
 	if mgPlan, ok := fp.(*MultiGetPlan); ok && stmt.Limit == nil {
+		// Only multi get plan and no limit statement can be optimize to remove plan
 		if o.canOptimizeDeletePlanToRemovePlan(mgPlan) {
 			return o.optimizeDeletePlanToRemovePlan(t, mgPlan)
 		}
