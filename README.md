@@ -137,53 +137,10 @@ delete where key ^= 'prefix' and value ~= '^val_' limit 10
 
 ## How to use this library
 
-First implements interfaces defined in `kv.go`:
+A full example: 
 
-```golang
-type Txn interface {
-	Get(key []byte) (value []byte, err error)
-	Put(key []byte, value []byte) error
-	BatchPut(kvs []KVPair) error
-	Delete(key []byte) error
-	BatchDelete(keys [][]byte) error
-	Cursor() (cursor Cursor, err error)
-}
+[https://github.com/c4pt0r/kvql/blob/master/examples/memkv/memkv.go](https://github.com/c4pt0r/kvql/blob/master/examples/memkv/memkv.go)
 
-type Cursor interface {
-	Seek(prefix []byte) error
-	Next() (key []byte, value []byte, err error)
-}
-```
-
-Then execute query:
-
-```golang
-var (
-    query string = "select * where key ^= 'k'"
-    txn kvql.Txn = buildClientTxn()
-)
-
-opt := kvql.NewOptimizer(query)
-plan, err := opt.BuildPlan(txn)
-if err != nil {
-    fatal(err)
-}
-
-execCtx := kvql.NewExecuteCtx()
-for {
-    rows, err := plan.Batch(execCtx)
-    if err != nil {
-        fatal(err)
-    }
-    if len(rows) == 0 {
-        break
-    }
-    execCtx.Clear()
-    for _, cols := range rows {
-        // Process columns...
-    }
-}
-```
 
 To get better error report, you can conver the error to `QueryBinder` and set the origin query like below:
 
