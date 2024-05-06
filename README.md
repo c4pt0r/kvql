@@ -82,6 +82,8 @@ Remove Statement:
 RemoveStmt ::= "REMOVE" Expression (, Expression)*
 ```
 
+**Note**: The remove statement's expressions should be return string or number type result. All the expression result is treat as a key that to be removed. This statement is like a interface for `BatchDelete` function.
+
 Delete Statement:
 
 ```
