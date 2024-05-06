@@ -76,14 +76,6 @@ PutStmt ::= "PUT" KVPair (, KVPair)*
 KVPair ::= "(" Expression, Expression ")"
 ```
 
-Remove Statement:
-
-```
-RemoveStmt ::= "REMOVE" Expression (, Expression)*
-```
-
-**Note**: The remove statement's expressions should be return string or number type result. All the expression result is treat as a key that to be removed. This statement is like a interface for `BatchDelete` function.
-
 Delete Statement:
 
 ```
@@ -127,11 +119,9 @@ select key, value, l2_distance(list(1,2,3,4), json(value)) as l2_dis where key ^
 # Put data
 put ('k1', 'v1'), ('k2', upper('v' + key))
 
-# Remove data
-remove 'k1', 'k2'
-
 # Delete data by filter and limit delete rows
 delete where key ^= 'prefix' and value ~= '^val_' limit 10
+delete where key in ('k1', 'k2', 'k3')
 ```
 
 

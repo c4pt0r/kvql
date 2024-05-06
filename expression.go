@@ -164,6 +164,8 @@ func (c *CheckCtx) GetNamedExpr(name string) (Expression, bool) {
 	return nil, false
 }
 
+type WalkCallback func(e Expression) bool
+
 type Expression interface {
 	Check(ctx *CheckCtx) error
 	String() string
@@ -171,6 +173,7 @@ type Expression interface {
 	ExecuteBatch(chunk []KVPair, ctx *ExecuteCtx) ([]any, error)
 	ReturnType() Type
 	GetPos() int
+	Walk(cb WalkCallback)
 }
 
 type BinaryOpExpr struct {
