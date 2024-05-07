@@ -833,17 +833,17 @@ func (p *Parser) trimEndSemis() {
 func (p *Parser) Parse() (Statement, error) {
 	p.trimEndSemis()
 	if p.numToks == 0 {
-		return nil, NewSyntaxError(-1, "Expect put, remove, delete, select or where keyword")
+		return nil, NewSyntaxError(-1, "Expect put, delete, select or where keyword")
 	}
 	p.next()
 	if p.tok == nil {
-		return nil, NewSyntaxError(-1, "Expect put, remove, delete, select or where keyword")
+		return nil, NewSyntaxError(-1, "Expect put, delete, select or where keyword")
 	} else {
 		switch p.tok.Tp {
 		case WHERE, SELECT, PUT, REMOVE, DELETE:
 			break
 		default:
-			return nil, NewSyntaxError(p.tok.Pos, "Expect put, remove, delete, select or where keyword")
+			return nil, NewSyntaxError(p.tok.Pos, "Expect put, delete, select or where keyword")
 		}
 	}
 	var (

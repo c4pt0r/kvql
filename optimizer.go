@@ -220,6 +220,47 @@ func (o *Optimizer) buildRemovePlan(t Txn, stmt *RemoveStmt) (FinalPlan, error) 
 	return plan, nil
 }
 
+func (o *Optimizer) optimizeDeletePlanToRemovePlan(t Txn, mgPlan *MultiGetPlan) (FinalPlan, error) {
+	keys := make([]Expression, len(mgPlan.Keys))
+	for i, key := range mgPlan.Keys {
+		kexpr := &StringExpr{
+			Pos:  0,
+			Data: key,
+		}
+		keys[i] = kexpr
+	}
+
+	removePlan := &RemovePlan{
+		Txn:  t,
+		Keys: keys,
+	}
+	err := removePlan.Init()
+	return removePlan, err
+}
+
+func (o *Optimizer) canOptimizeDeletePlanToRemovePlan(mgPlan *MultiGetPlan) bool {
+	if mgPlan.Filter.Ast == nil || mgPlan.Filter.Ast.Expr == nil {
+		return false
+	}
+	fexpr := mgPlan.Filter.Ast.Expr
+	hasAndOp := false
+	fexpr.Walk(func(e Expression) bool {
+		switch eval := e.(type) {
+		case *BinaryOpExpr:
+			if eval.Op == And || eval.Op == KWAnd {
+				hasAndOp = true
+				return false
+			}
+		}
+		return true
+	})
+	// For safety, if filter expressions has `and` operator it should not optimize to remove plan
+	if hasAndOp {
+		return false
+	}
+	return true
+}
+
 func (o *Optimizer) buildDeletePlan(t Txn, stmt *DeleteStmt) (FinalPlan, error) {
 	var err error
 	// Build Scan
@@ -238,6 +279,13 @@ func (o *Optimizer) buildDeletePlan(t Txn, stmt *DeleteStmt) (FinalPlan, error) 
 			return nil, err
 		}
 		return delPlan, nil
+	}
+
+	if mgPlan, ok := fp.(*MultiGetPlan); ok && stmt.Limit == nil {
+		// Only multi get plan and no limit statement can be optimize to remove plan
+		if o.canOptimizeDeletePlanToRemovePlan(mgPlan) {
+			return o.optimizeDeletePlanToRemovePlan(t, mgPlan)
+		}
 	}
 
 	delPlan := &DeletePlan{
