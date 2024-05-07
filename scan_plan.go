@@ -8,15 +8,15 @@ import (
 )
 
 type FullScanPlan struct {
-	Txn    Txn
-	Filter *FilterExec
-	iter   Cursor
+	Storage Storage
+	Filter  *FilterExec
+	iter    Cursor
 }
 
-func NewFullScanPlan(t Txn, f *FilterExec) Plan {
+func NewFullScanPlan(s Storage, f *FilterExec) Plan {
 	return &FullScanPlan{
-		Txn:    t,
-		Filter: f,
+		Storage: s,
+		Filter:  f,
 	}
 }
 
@@ -29,7 +29,7 @@ func (p *FullScanPlan) Explain() []string {
 }
 
 func (p *FullScanPlan) Init() (err error) {
-	p.iter, err = p.Txn.Cursor()
+	p.iter, err = p.Storage.Cursor()
 	if err != nil {
 		return err
 	}
@@ -101,22 +101,22 @@ func (p *FullScanPlan) Batch(ctx *ExecuteCtx) ([]KVPair, error) {
 }
 
 type PrefixScanPlan struct {
-	Txn    Txn
-	Filter *FilterExec
-	Prefix string
-	iter   Cursor
+	Storage Storage
+	Filter  *FilterExec
+	Prefix  string
+	iter    Cursor
 }
 
-func NewPrefixScanPlan(t Txn, f *FilterExec, p string) Plan {
+func NewPrefixScanPlan(s Storage, f *FilterExec, p string) Plan {
 	return &PrefixScanPlan{
-		Txn:    t,
-		Filter: f,
-		Prefix: p,
+		Storage: s,
+		Filter:  f,
+		Prefix:  p,
 	}
 }
 
 func (p *PrefixScanPlan) Init() (err error) {
-	p.iter, err = p.Txn.Cursor()
+	p.iter, err = p.Storage.Cursor()
 	if err != nil {
 		return err
 	}
@@ -210,24 +210,24 @@ func (p *PrefixScanPlan) Explain() []string {
 }
 
 type RangeScanPlan struct {
-	Txn    Txn
-	Filter *FilterExec
-	Start  []byte
-	End    []byte
-	iter   Cursor
+	Storage Storage
+	Filter  *FilterExec
+	Start   []byte
+	End     []byte
+	iter    Cursor
 }
 
-func NewRangeScanPlan(t Txn, f *FilterExec, start []byte, end []byte) Plan {
+func NewRangeScanPlan(s Storage, f *FilterExec, start []byte, end []byte) Plan {
 	return &RangeScanPlan{
-		Txn:    t,
-		Filter: f,
-		Start:  start,
-		End:    end,
+		Storage: s,
+		Filter:  f,
+		Start:   start,
+		End:     end,
 	}
 }
 
 func (p *RangeScanPlan) Init() (err error) {
-	p.iter, err = p.Txn.Cursor()
+	p.iter, err = p.Storage.Cursor()
 	if err != nil {
 		return err
 	}
@@ -333,18 +333,18 @@ func (p *RangeScanPlan) Explain() []string {
 }
 
 type MultiGetPlan struct {
-	Txn     Txn
+	Storage Storage
 	Filter  *FilterExec
 	Keys    []string
 	numKeys int
 	idx     int
 }
 
-func NewMultiGetPlan(t Txn, f *FilterExec, keys []string) Plan {
+func NewMultiGetPlan(s Storage, f *FilterExec, keys []string) Plan {
 	// We should sort keys to ensure order by erase works correctly
 	sort.Strings(keys)
 	return &MultiGetPlan{
-		Txn:     t,
+		Storage: s,
 		Filter:  f,
 		Keys:    keys,
 		idx:     0,
@@ -363,7 +363,7 @@ func (p *MultiGetPlan) Next(ctx *ExecuteCtx) ([]byte, []byte, error) {
 		}
 		key := []byte(p.Keys[p.idx])
 		p.idx++
-		val, err := p.Txn.Get(key)
+		val, err := p.Storage.Get(key)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -400,7 +400,7 @@ func (p *MultiGetPlan) Batch(ctx *ExecuteCtx) ([]KVPair, error) {
 			}
 			key := []byte(p.Keys[p.idx])
 			p.idx++
-			val, err := p.Txn.Get(key)
+			val, err := p.Storage.Get(key)
 			if err != nil {
 				return nil, err
 			}

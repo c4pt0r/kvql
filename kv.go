@@ -1,6 +1,6 @@
 package kvql
 
-type Txn interface {
+type Storage interface {
 	Get(key []byte) (value []byte, err error)
 	Put(key []byte, value []byte) error
 	BatchPut(kvs []KVPair) error

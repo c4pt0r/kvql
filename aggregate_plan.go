@@ -20,7 +20,7 @@ type AggrPlanField struct {
 }
 
 type AggregatePlan struct {
-	Txn           Txn
+	Storage       Storage
 	ChildPlan     Plan
 	FieldNames    []string
 	FieldTypes    []Type

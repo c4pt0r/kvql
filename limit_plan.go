@@ -3,7 +3,7 @@ package kvql
 import "fmt"
 
 type FinalLimitPlan struct {
-	Txn        Txn
+	Storage    Storage
 	Start      int
 	Count      int
 	current    int
@@ -133,7 +133,7 @@ func (p *FinalLimitPlan) FieldTypeList() []Type {
 }
 
 type LimitPlan struct {
-	Txn       Txn
+	Storage   Storage
 	Start     int
 	Count     int
 	current   int

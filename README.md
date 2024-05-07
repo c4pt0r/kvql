@@ -137,7 +137,7 @@ To get better error report, you can conver the error to `QueryBinder` and set th
 ```golang
 ...
 opt := kvql.NewOptimizer(query)
-plan, err := opt.BuildPlan(txn)
+plan, err := opt.BuildPlan(storage)
 if err != nil {
 	if qerr, ok := err.(kvql.QueryBinder); ok {
 		qerr.BindQuery(query)
@@ -164,7 +164,7 @@ If you want to display the plan tree, like `EXPLAIN` statement in SQL, the `kvql
 ```golang
 ...
 opt := kvql.NewOptimizer(query)
-plan, err := opt.BuildPlan(txn)
+plan, err := opt.BuildPlan(storage)
 if err != nil {
 	fatal(err)
 }

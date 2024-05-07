@@ -71,7 +71,7 @@ func (o *Optimizer) findAggrFunc(expr Expression) bool {
 	return false
 }
 
-func (o *Optimizer) buildFinalPlan(t Txn, fp Plan, stmt *SelectStmt) (FinalPlan, error) {
+func (o *Optimizer) buildFinalPlan(s Storage, fp Plan, stmt *SelectStmt) (FinalPlan, error) {
 	hasAggr := false
 	aggrFields := 0
 	aggrAll := true
@@ -104,7 +104,7 @@ func (o *Optimizer) buildFinalPlan(t Txn, fp Plan, stmt *SelectStmt) (FinalPlan,
 	}
 	if !hasAggr {
 		ffp = &ProjectionPlan{
-			Txn:        t,
+			Storage:    s,
 			ChildPlan:  fp,
 			AllFields:  stmt.AllFields,
 			FieldNames: stmt.FieldNames,
@@ -114,12 +114,12 @@ func (o *Optimizer) buildFinalPlan(t Txn, fp Plan, stmt *SelectStmt) (FinalPlan,
 
 		// Build order
 		if stmt.Order != nil {
-			ffp = o.buildFinalOrderPlan(t, ffp, false, stmt)
+			ffp = o.buildFinalOrderPlan(s, ffp, false, stmt)
 		}
 
 		// Build limit
 		if stmt.Limit != nil {
-			ffp = o.buildFinalLimitPlan(t, ffp, stmt)
+			ffp = o.buildFinalLimitPlan(s, ffp, stmt)
 		}
 
 		return ffp, nil
@@ -156,7 +156,7 @@ func (o *Optimizer) buildFinalPlan(t Txn, fp Plan, stmt *SelectStmt) (FinalPlan,
 	}
 
 	ffp = &AggregatePlan{
-		Txn:           t,
+		Storage:       s,
 		ChildPlan:     fp,
 		AggrAll:       aggrAll,
 		FieldNames:    stmt.FieldNames,
@@ -168,37 +168,37 @@ func (o *Optimizer) buildFinalPlan(t Txn, fp Plan, stmt *SelectStmt) (FinalPlan,
 	}
 
 	if stmt.Order != nil {
-		ffp = o.buildFinalOrderPlan(t, ffp, true, stmt)
+		ffp = o.buildFinalOrderPlan(s, ffp, true, stmt)
 	}
 
 	if stmt.Limit != nil && !doNotBuildLimit {
-		ffp = o.buildFinalLimitPlan(t, ffp, stmt)
+		ffp = o.buildFinalLimitPlan(s, ffp, stmt)
 	}
 	return ffp, nil
 }
 
-func (o *Optimizer) buildPlan(t Txn) (FinalPlan, error) {
+func (o *Optimizer) buildPlan(s Storage) (FinalPlan, error) {
 	err := o.init()
 	if err != nil {
 		return nil, err
 	}
 	switch stmt := o.stmt.(type) {
 	case *SelectStmt:
-		return o.buildSelectPlan(t, stmt)
+		return o.buildSelectPlan(s, stmt)
 	case *PutStmt:
-		return o.buildPutPlan(t, stmt)
+		return o.buildPutPlan(s, stmt)
 	case *RemoveStmt:
-		return o.buildRemovePlan(t, stmt)
+		return o.buildRemovePlan(s, stmt)
 	case *DeleteStmt:
-		return o.buildDeletePlan(t, stmt)
+		return o.buildDeletePlan(s, stmt)
 	default:
 		return nil, fmt.Errorf("Cannot build query plan without a select statement")
 	}
 }
 
-func (o *Optimizer) buildPutPlan(t Txn, stmt *PutStmt) (FinalPlan, error) {
+func (o *Optimizer) buildPutPlan(s Storage, stmt *PutStmt) (FinalPlan, error) {
 	plan := &PutPlan{
-		Txn:     t,
+		Storage: s,
 		KVPairs: stmt.KVPairs,
 	}
 	err := plan.Init()
@@ -208,10 +208,10 @@ func (o *Optimizer) buildPutPlan(t Txn, stmt *PutStmt) (FinalPlan, error) {
 	return plan, nil
 }
 
-func (o *Optimizer) buildRemovePlan(t Txn, stmt *RemoveStmt) (FinalPlan, error) {
+func (o *Optimizer) buildRemovePlan(s Storage, stmt *RemoveStmt) (FinalPlan, error) {
 	plan := &RemovePlan{
-		Txn:  t,
-		Keys: stmt.Keys,
+		Storage: s,
+		Keys:    stmt.Keys,
 	}
 	err := plan.Init()
 	if err != nil {
@@ -220,7 +220,7 @@ func (o *Optimizer) buildRemovePlan(t Txn, stmt *RemoveStmt) (FinalPlan, error) 
 	return plan, nil
 }
 
-func (o *Optimizer) optimizeDeletePlanToRemovePlan(t Txn, mgPlan *MultiGetPlan) (FinalPlan, error) {
+func (o *Optimizer) optimizeDeletePlanToRemovePlan(s Storage, mgPlan *MultiGetPlan) (FinalPlan, error) {
 	keys := make([]Expression, len(mgPlan.Keys))
 	for i, key := range mgPlan.Keys {
 		kexpr := &StringExpr{
@@ -231,8 +231,8 @@ func (o *Optimizer) optimizeDeletePlanToRemovePlan(t Txn, mgPlan *MultiGetPlan) 
 	}
 
 	removePlan := &RemovePlan{
-		Txn:  t,
-		Keys: keys,
+		Storage: s,
+		Keys:    keys,
 	}
 	err := removePlan.Init()
 	return removePlan, err
@@ -261,17 +261,17 @@ func (o *Optimizer) canOptimizeDeletePlanToRemovePlan(mgPlan *MultiGetPlan) bool
 	return true
 }
 
-func (o *Optimizer) buildDeletePlan(t Txn, stmt *DeleteStmt) (FinalPlan, error) {
+func (o *Optimizer) buildDeletePlan(s Storage, stmt *DeleteStmt) (FinalPlan, error) {
 	var err error
 	// Build Scan
-	fp := o.buildScanPlan(t)
+	fp := o.buildScanPlan(s)
 
 	// Just build an empyt result plan so we can
 	// ignore limit plan just return the delete plan
 	// with empty result plan directly
 	if _, ok := fp.(*EmptyResultPlan); ok {
 		delPlan := &DeletePlan{
-			Txn:       t,
+			Storage:   s,
 			ChildPlan: fp,
 		}
 		err = delPlan.Init()
@@ -284,18 +284,18 @@ func (o *Optimizer) buildDeletePlan(t Txn, stmt *DeleteStmt) (FinalPlan, error) 
 	if mgPlan, ok := fp.(*MultiGetPlan); ok && stmt.Limit == nil {
 		// Only multi get plan and no limit statement can be optimize to remove plan
 		if o.canOptimizeDeletePlanToRemovePlan(mgPlan) {
-			return o.optimizeDeletePlanToRemovePlan(t, mgPlan)
+			return o.optimizeDeletePlanToRemovePlan(s, mgPlan)
 		}
 	}
 
 	delPlan := &DeletePlan{
-		Txn:       t,
+		Storage:   s,
 		ChildPlan: fp,
 	}
 
 	if stmt.Limit != nil {
 		limitPlan := &LimitPlan{
-			Txn:       t,
+			Storage:   s,
 			Start:     stmt.Limit.Start,
 			Count:     stmt.Limit.Count,
 			ChildPlan: fp,
@@ -309,15 +309,15 @@ func (o *Optimizer) buildDeletePlan(t Txn, stmt *DeleteStmt) (FinalPlan, error) 
 	return delPlan, nil
 }
 
-func (o *Optimizer) buildSelectPlan(t Txn, stmt *SelectStmt) (FinalPlan, error) {
+func (o *Optimizer) buildSelectPlan(s Storage, stmt *SelectStmt) (FinalPlan, error) {
 	// Build Scan
-	fp := o.buildScanPlan(t)
+	fp := o.buildScanPlan(s)
 
 	// Just build an empty result plan so we can
 	// ignore order and limit plan just return
 	// the projection plan with empty result plan
 	if _, ok := fp.(*EmptyResultPlan); ok {
-		ret, err := o.buildFinalPlan(t, fp, stmt)
+		ret, err := o.buildFinalPlan(s, fp, stmt)
 		if err != nil {
 			return nil, err
 		}
@@ -328,7 +328,7 @@ func (o *Optimizer) buildSelectPlan(t Txn, stmt *SelectStmt) (FinalPlan, error) 
 		return ret, nil
 	}
 
-	ret, err := o.buildFinalPlan(t, fp, stmt)
+	ret, err := o.buildFinalPlan(s, fp, stmt)
 	if err != nil {
 		return nil, err
 	}
@@ -339,8 +339,8 @@ func (o *Optimizer) buildSelectPlan(t Txn, stmt *SelectStmt) (FinalPlan, error) 
 	return ret, nil
 }
 
-func (o *Optimizer) BuildPlan(t Txn) (FinalPlan, error) {
-	ret, err := o.buildPlan(t)
+func (o *Optimizer) BuildPlan(s Storage) (FinalPlan, error) {
+	ret, err := o.buildPlan(s)
 	if err != nil {
 		return nil, err
 	}
@@ -351,9 +351,9 @@ func (o *Optimizer) BuildPlan(t Txn) (FinalPlan, error) {
 	return ret, nil
 }
 
-func (o *Optimizer) buildFinalLimitPlan(t Txn, ffp FinalPlan, stmt *SelectStmt) FinalPlan {
+func (o *Optimizer) buildFinalLimitPlan(s Storage, ffp FinalPlan, stmt *SelectStmt) FinalPlan {
 	return &FinalLimitPlan{
-		Txn:        t,
+		Storage:    s,
 		Start:      stmt.Limit.Start,
 		Count:      stmt.Limit.Count,
 		FieldNames: ffp.FieldNameList(),
@@ -362,7 +362,7 @@ func (o *Optimizer) buildFinalLimitPlan(t Txn, ffp FinalPlan, stmt *SelectStmt) 
 	}
 }
 
-func (o *Optimizer) buildFinalOrderPlan(t Txn, ffp FinalPlan, hasAggr bool, stmt *SelectStmt) FinalPlan {
+func (o *Optimizer) buildFinalOrderPlan(s Storage, ffp FinalPlan, hasAggr bool, stmt *SelectStmt) FinalPlan {
 	if !hasAggr && len(stmt.Order.Orders) == 1 {
 		order := stmt.Order.Orders[0]
 		switch expr := order.Field.(type) {
@@ -374,7 +374,7 @@ func (o *Optimizer) buildFinalOrderPlan(t Txn, ffp FinalPlan, hasAggr bool, stmt
 		}
 	}
 	return &FinalOrderPlan{
-		Txn:        t,
+		Storage:    s,
 		Orders:     stmt.Order.Orders,
 		FieldNames: ffp.FieldNameList(),
 		FieldTypes: ffp.FieldTypeList(),
@@ -382,7 +382,7 @@ func (o *Optimizer) buildFinalOrderPlan(t Txn, ffp FinalPlan, hasAggr bool, stmt
 	}
 }
 
-func (o *Optimizer) buildScanPlan(t Txn) Plan {
-	fopt := NewFilterOptimizer(o.filter.Ast, t, o.filter)
+func (o *Optimizer) buildScanPlan(s Storage) Plan {
+	fopt := NewFilterOptimizer(o.filter.Ast, s, o.filter)
 	return fopt.Optimize()
 }

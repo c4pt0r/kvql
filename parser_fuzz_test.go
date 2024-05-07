@@ -2,29 +2,29 @@ package kvql
 
 import "testing"
 
-type fuzzQueryTxn struct{}
+type fuzzQueryStorage struct{}
 
-func (t *fuzzQueryTxn) Get(key []byte) ([]byte, error) {
+func (t *fuzzQueryStorage) Get(key []byte) ([]byte, error) {
 	return nil, nil
 }
 
-func (t *fuzzQueryTxn) Put(key []byte, value []byte) error {
+func (t *fuzzQueryStorage) Put(key []byte, value []byte) error {
 	return nil
 }
 
-func (t *fuzzQueryTxn) BatchPut(kvs []KVPair) error {
+func (t *fuzzQueryStorage) BatchPut(kvs []KVPair) error {
 	return nil
 }
 
-func (t *fuzzQueryTxn) Delete(key []byte) error {
+func (t *fuzzQueryStorage) Delete(key []byte) error {
 	return nil
 }
 
-func (t *fuzzQueryTxn) BatchDelete(key [][]byte) error {
+func (t *fuzzQueryStorage) BatchDelete(key [][]byte) error {
 	return nil
 }
 
-func (t *fuzzQueryTxn) Cursor() (Cursor, error) {
+func (t *fuzzQueryStorage) Cursor() (Cursor, error) {
 	return &fuzzQueryCursor{}, nil
 }
 
@@ -55,7 +55,7 @@ func FuzzSQLParser(f *testing.F) {
 	for _, t := range tests {
 		f.Add(t)
 	}
-	txn := &fuzzQueryTxn{}
+	txn := &fuzzQueryStorage{}
 	f.Fuzz(func(t *testing.T, query string) {
 		o := NewOptimizer(query)
 		o.buildPlan(txn)

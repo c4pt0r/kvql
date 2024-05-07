@@ -6,7 +6,7 @@ import (
 )
 
 type ProjectionPlan struct {
-	Txn        Txn
+	Storage    Storage
 	ChildPlan  Plan
 	AllFields  bool
 	FieldNames []string

@@ -24,9 +24,9 @@ type ScanType struct {
 }
 
 type FilterOptimizer struct {
-	expr   Expression
-	filter *FilterExec
-	txn    Txn
+	expr    Expression
+	filter  *FilterExec
+	storage Storage
 }
 
 func (st *ScanType) String() string {
@@ -58,11 +58,11 @@ func ScanTypeToString(tp byte) string {
 	return "UNKNOWN"
 }
 
-func NewFilterOptimizer(ast *WhereStmt, t Txn, filter *FilterExec) *FilterOptimizer {
+func NewFilterOptimizer(ast *WhereStmt, s Storage, filter *FilterExec) *FilterOptimizer {
 	return &FilterOptimizer{
-		expr:   ast.Expr,
-		txn:    t,
-		filter: filter,
+		expr:    ast.Expr,
+		storage: s,
+		filter:  filter,
 	}
 }
 
@@ -70,28 +70,28 @@ func (o *FilterOptimizer) Optimize() Plan {
 	stype := o.optimizeExpr(o.expr)
 	switch stype.scanTp {
 	case EMPTY:
-		return NewEmptyResultPlan(o.txn, o.filter)
+		return NewEmptyResultPlan(o.storage, o.filter)
 	case MGET:
 		skeys := make([]string, len(stype.keys))
 		for i, k := range stype.keys {
 			skeys[i] = string(k)
 		}
-		return NewMultiGetPlan(o.txn, o.filter, skeys)
+		return NewMultiGetPlan(o.storage, o.filter, skeys)
 	case PREFIX:
 		if len(stype.keys) == 0 {
-			return NewFullScanPlan(o.txn, o.filter)
+			return NewFullScanPlan(o.storage, o.filter)
 		}
 		prefix := string(stype.keys[0])
-		return NewPrefixScanPlan(o.txn, o.filter, prefix)
+		return NewPrefixScanPlan(o.storage, o.filter, prefix)
 	case RANGE:
 		if len(stype.keys) == 2 {
-			return NewRangeScanPlan(o.txn, o.filter, stype.keys[0], stype.keys[1])
+			return NewRangeScanPlan(o.storage, o.filter, stype.keys[0], stype.keys[1])
 		}
 	case FULL:
-		return NewFullScanPlan(o.txn, o.filter)
+		return NewFullScanPlan(o.storage, o.filter)
 	}
 	// No match just return full scan plan
-	return NewFullScanPlan(o.txn, o.filter)
+	return NewFullScanPlan(o.storage, o.filter)
 }
 
 func (o *FilterOptimizer) optimizeExpr(expr Expression) *ScanType {

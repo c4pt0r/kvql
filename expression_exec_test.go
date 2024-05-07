@@ -120,17 +120,17 @@ func TestExec5(t *testing.T) {
 	}
 }
 
-type mockTxn struct {
+type mockStorage struct {
 	data []KVPair
 }
 
-func newMockTxn(kvs []KVPair) Txn {
-	return &mockTxn{
+func newMockStorage(kvs []KVPair) Storage {
+	return &mockStorage{
 		data: kvs,
 	}
 }
 
-func (t *mockTxn) Get(key []byte) ([]byte, error) {
+func (t *mockStorage) Get(key []byte) ([]byte, error) {
 	for _, d := range t.data {
 		if bytes.Equal(key, d.Key) {
 			return d.Value, nil
@@ -139,32 +139,32 @@ func (t *mockTxn) Get(key []byte) ([]byte, error) {
 	return nil, nil
 }
 
-func (t *mockTxn) Put(key []byte, value []byte) error {
+func (t *mockStorage) Put(key []byte, value []byte) error {
 	return nil
 }
 
-func (t *mockTxn) BatchPut(kvs []KVPair) error {
+func (t *mockStorage) BatchPut(kvs []KVPair) error {
 	return nil
 }
 
-func (t *mockTxn) Delete(key []byte) error {
+func (t *mockStorage) Delete(key []byte) error {
 	return nil
 }
 
-func (t *mockTxn) BatchDelete(key [][]byte) error {
+func (t *mockStorage) BatchDelete(key [][]byte) error {
 	return nil
 }
 
-func (t *mockTxn) Cursor() (Cursor, error) {
+func (t *mockStorage) Cursor() (Cursor, error) {
 	return &mockSmokeCursor{
-		txn: t,
-		idx: 0,
+		storage: t,
+		idx:     0,
 	}, nil
 }
 
 type mockSmokeCursor struct {
-	txn *mockTxn
-	idx int
+	storage *mockStorage
+	idx     int
 }
 
 func (c *mockSmokeCursor) Seek(prefix []byte) error {
@@ -172,10 +172,10 @@ func (c *mockSmokeCursor) Seek(prefix []byte) error {
 }
 
 func (c *mockSmokeCursor) Next() ([]byte, []byte, error) {
-	if c.idx >= len(c.txn.data) {
+	if c.idx >= len(c.storage.data) {
 		return nil, nil, nil
 	}
-	kvp := c.txn.data[c.idx]
+	kvp := c.storage.data[c.idx]
 	c.idx += 1
 	return kvp.Key, kvp.Value, nil
 }
@@ -189,7 +189,7 @@ func TestExec6(t *testing.T) {
 		gval := fmt.Sprintf("%s_%d", gkey, i+1)
 		kvs = append(kvs, NewKVPStr(gkey, gval))
 	}
-	txn := newMockTxn(kvs)
+	txn := newMockStorage(kvs)
 	opt := NewOptimizer(query)
 	plan, err := opt.BuildPlan(txn)
 	if err != nil {
