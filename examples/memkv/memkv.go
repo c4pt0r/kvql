@@ -1,108 +1,167 @@
 package main
 
 import (
-	"bytes"
+	"bufio"
 	"fmt"
+	"os"
+	"sort"
+	"strings"
+	"sync"
 
 	"github.com/c4pt0r/kvql"
-	"github.com/tidwall/btree"
 )
 
-/*
-MemKV should implement the following interfaces:
-
-type kvql.Storage interface {
-	...
-}
-
-type kvql.Cursor interface {
-	...
-}
-*/
-
 type MemKV struct {
-	// BTree is thread-safe
-	tr *btree.BTree
+	data map[string][]byte
+	// should use a sorted map or tree to maintain order
+	// but for simplicity, we use a slice to maintain order
+	orderedKeys []string
+	mu          sync.RWMutex
 }
 
 type MemKVCursor struct {
-	tr   *btree.BTree
-	iter *btree.Iter
-	key  []byte
+	keys  []string
+	index int
+	data  map[string][]byte
 }
 
 func NewMemKV() *MemKV {
-	return &MemKV{tr: btree.New(func(a, b interface{}) bool {
-		return bytes.Compare(a.(kvql.KVPair).Key, b.(kvql.KVPair).Key) < 0
-	})}
+	return &MemKV{
+		data:        make(map[string][]byte),
+		orderedKeys: make([]string, 0),
+	}
 }
 
 var _ kvql.Storage = (*MemKV)(nil)
 var _ kvql.Cursor = (*MemKVCursor)(nil)
 
 func (m *MemKV) Get(key []byte) (value []byte, err error) {
-	item := m.tr.Get(kvql.KVPair{Key: key})
-	if item == nil {
-		return nil, nil
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	value, ok := m.data[string(key)]
+	if !ok {
+		return nil, nil // Return nil if the key does not exist
 	}
-	return item.(kvql.KVPair).Value, nil
+	return value, nil
 }
 
 func (m *MemKV) Put(key []byte, value []byte) error {
-	m.tr.Set(kvql.KVPair{Key: key, Value: value})
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	strKey := string(key)
+	if _, exists := m.data[strKey]; !exists {
+		m.orderedKeys = append(m.orderedKeys, strKey)
+		sort.Strings(m.orderedKeys) // Maintain order after insertion
+	}
+	m.data[strKey] = value
 	return nil
 }
 
 func (m *MemKV) Delete(key []byte) error {
-	m.tr.Delete(key)
-	return nil
-}
-
-func (m *MemKV) BatchDelete(keys [][]byte) error {
-	for _, key := range keys {
-		m.tr.Delete(key)
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	strKey := string(key)
+	if _, exists := m.data[strKey]; exists {
+		delete(m.data, strKey)
+		i := sort.SearchStrings(m.orderedKeys, strKey)
+		m.orderedKeys = append(m.orderedKeys[:i], m.orderedKeys[i+1:]...)
 	}
 	return nil
 }
 
 func (m *MemKV) BatchPut(kvs []kvql.KVPair) error {
 	for _, kv := range kvs {
-		m.tr.Set(kv)
+		m.Put(kv.Key, kv.Value)
+	}
+	return nil
+}
+
+func (m *MemKV) BatchDelete(keys [][]byte) error {
+	for _, key := range keys {
+		m.Delete(key)
 	}
 	return nil
 }
 
 func (m *MemKV) Cursor() (cursor kvql.Cursor, err error) {
-	return &MemKVCursor{tr: m.tr}, nil
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	return &MemKVCursor{data: m.data, keys: m.orderedKeys, index: -1}, nil
 }
 
 func (c *MemKVCursor) Seek(prefix []byte) error {
-	c.key = prefix
-	c.iter = nil
+	c.index = sort.SearchStrings(c.keys, string(prefix))
+	if c.index < len(c.keys) && strings.HasPrefix(c.keys[c.index], string(prefix)) {
+		return nil
+	}
+	c.index = len(c.keys)
 	return nil
 }
 
 func (c *MemKVCursor) Next() (key []byte, value []byte, err error) {
-	if c.iter == nil {
-		iter := c.tr.Iter()
-		c.iter = &iter
-		if c.iter.Seek(kvql.KVPair{Key: c.key}) {
-			item := c.iter.Item().(kvql.KVPair)
-			return item.Key, item.Value, nil
-		}
+	if c.index < 0 || c.index >= len(c.keys) {
 		return nil, nil, nil
 	}
-	if c.iter.Next() {
-		item := c.iter.Item().(kvql.KVPair)
-		return item.Key, item.Value, nil
+	keyStr := c.keys[c.index]
+	value = c.data[keyStr]
+	c.index++
+	return []byte(keyStr), value, nil
+}
+
+func (c *MemKVCursor) Close() error {
+	// No resources to release in this simple cursor
+	return nil
+}
+
+func repl(storage kvql.Storage) {
+	buf := bufio.NewReader(os.Stdin)
+	for {
+		fmt.Print("kvql> ")
+		query, err := buf.ReadString('\n')
+		if err != nil {
+			fmt.Println("Error reading input:", err)
+			continue
+		}
+		query = strings.TrimSpace(query)
+
+		opt := kvql.NewOptimizer(query)
+		plan, err := opt.BuildPlan(storage)
+		if err != nil {
+			fmt.Println("Error building plan:", err)
+			continue
+		}
+
+		execCtx := kvql.NewExecuteCtx()
+		for {
+			rows, err := plan.Batch(execCtx)
+			if err != nil {
+				fmt.Println("Error executing plan:", err)
+				break
+			}
+			if len(rows) == 0 {
+				break
+			}
+			execCtx.Clear()
+			for _, row := range rows {
+				for _, col := range row {
+					switch col := col.(type) {
+					case int, int32, int64:
+						fmt.Printf("%d ", col)
+					case []byte:
+						fmt.Printf("%s ", string(col))
+					default:
+						fmt.Printf("%v ", col)
+					}
+				}
+				fmt.Println()
+			}
+		}
 	}
-	return nil, nil, nil
 }
 
 func main() {
-	// test memkv
-
 	kv := NewMemKV()
+	// put some test data
 	kv.Put([]byte("a"), []byte("1"))
 	kv.Put([]byte("a1"), []byte("2"))
 	kv.Put([]byte("a2"), []byte("3"))
@@ -110,42 +169,5 @@ func main() {
 	kv.Put([]byte("b"), []byte("2"))
 	kv.Put([]byte("c"), []byte("3"))
 
-	cursor, _ := kv.Cursor()
-	cursor.Seek([]byte("a1"))
-	for {
-		key, value, _ := cursor.Next()
-		if key == nil {
-			break
-		}
-		println(string(key), string(value))
-	}
-
-	println("-----------")
-
-	var (
-		query string       = "select * where key ^= 'a'"
-		txn   kvql.Storage = kv
-	)
-
-	opt := kvql.NewOptimizer(query)
-	plan, err := opt.BuildPlan(txn)
-	if err != nil {
-		panic(err)
-	}
-
-	execCtx := kvql.NewExecuteCtx()
-	for {
-		rows, err := plan.Batch(execCtx)
-		if err != nil {
-			panic(err)
-		}
-		if len(rows) == 0 {
-			break
-		}
-		execCtx.Clear()
-		for _, cols := range rows {
-			fmt.Println(string(cols[0].([]byte)),
-				string(cols[1].([]byte)))
-		}
-	}
+	repl(kv)
 }
