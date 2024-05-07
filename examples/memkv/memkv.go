@@ -11,7 +11,7 @@ import (
 /*
 MemKV should implement the following interfaces:
 
-type kvql.Txn interface {
+type kvql.Storage interface {
 	...
 }
 
@@ -37,7 +37,7 @@ func NewMemKV() *MemKV {
 	})}
 }
 
-var _ kvql.Txn = (*MemKV)(nil)
+var _ kvql.Storage = (*MemKV)(nil)
 var _ kvql.Cursor = (*MemKVCursor)(nil)
 
 func (m *MemKV) Get(key []byte) (value []byte, err error) {
@@ -123,8 +123,8 @@ func main() {
 	println("-----------")
 
 	var (
-		query string   = "select * where key ^= 'a'"
-		txn   kvql.Txn = kv
+		query string       = "select * where key ^= 'a'"
+		txn   kvql.Storage = kv
 	)
 
 	opt := kvql.NewOptimizer(query)

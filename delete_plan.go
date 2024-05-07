@@ -3,7 +3,7 @@ package kvql
 import "fmt"
 
 type DeletePlan struct {
-	Txn       Txn
+	Storage   Storage
 	ChildPlan Plan
 	executed  bool
 }
@@ -68,7 +68,7 @@ func (p *DeletePlan) execute(ctx *ExecuteCtx) (int, error) {
 		for i, kv := range rows {
 			keys[i] = kv.Key
 		}
-		err = p.Txn.BatchDelete(keys)
+		err = p.Storage.BatchDelete(keys)
 		if err != nil {
 			return count, err
 		}

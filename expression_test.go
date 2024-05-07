@@ -9,20 +9,20 @@ import (
 
 var benchmarkChunkSize = 32
 
-type mockQueryTxn struct {
+type mockQueryStorage struct {
 	data []KVPair
 }
 
-func newMockQueryTxn(data []KVPair) *mockQueryTxn {
+func newMockQueryStorage(data []KVPair) *mockQueryStorage {
 	sort.Slice(data, func(i, j int) bool {
 		return bytes.Compare(data[i].Key, data[j].Key) < 0
 	})
-	return &mockQueryTxn{
+	return &mockQueryStorage{
 		data: data,
 	}
 }
 
-func (t *mockQueryTxn) Get(key []byte) ([]byte, error) {
+func (t *mockQueryStorage) Get(key []byte) ([]byte, error) {
 	for _, kvp := range t.data {
 		if bytes.Equal(kvp.Key, key) {
 			return kvp.Value, nil
@@ -31,23 +31,23 @@ func (t *mockQueryTxn) Get(key []byte) ([]byte, error) {
 	return nil, nil
 }
 
-func (t *mockQueryTxn) Put(key []byte, value []byte) error {
+func (t *mockQueryStorage) Put(key []byte, value []byte) error {
 	return nil
 }
 
-func (t *mockQueryTxn) BatchPut(kvs []KVPair) error {
+func (t *mockQueryStorage) BatchPut(kvs []KVPair) error {
 	return nil
 }
 
-func (t *mockQueryTxn) Delete(key []byte) error {
+func (t *mockQueryStorage) Delete(key []byte) error {
 	return nil
 }
 
-func (t *mockQueryTxn) BatchDelete(key [][]byte) error {
+func (t *mockQueryStorage) BatchDelete(key [][]byte) error {
 	return nil
 }
 
-func (t *mockQueryTxn) Cursor() (Cursor, error) {
+func (t *mockQueryStorage) Cursor() (Cursor, error) {
 	return &mockCursor{
 		data:   t.data,
 		idx:    0,
@@ -150,7 +150,7 @@ func BenchmarkExpressionEvalHalfVec(b *testing.B) {
 func BenchmarkQuery(b *testing.B) {
 	query := "select sum(int(value)) * 2, key + '_' + 'end' as kk, int(value) as ival where key between 'k' and 'l' group by kk, ival order by ival desc"
 	data := generateChunk(1000)
-	qtxn := newMockQueryTxn(data)
+	qtxn := newMockQueryStorage(data)
 
 	b.ResetTimer()
 	for n := 0; n < b.N; n++ {
@@ -169,7 +169,7 @@ func BenchmarkQuery(b *testing.B) {
 func BenchmarkQueryBatch(b *testing.B) {
 	query := "select sum(int(value)) * 2, key + '_' + 'end' as kk, int(value) as ival where key between 'k' and 'l' group by kk, ival order by ival desc"
 	data := generateChunk(1000)
-	qtxn := newMockQueryTxn(data)
+	qtxn := newMockQueryStorage(data)
 
 	b.ResetTimer()
 	for n := 0; n < b.N; n++ {
@@ -188,7 +188,7 @@ func BenchmarkQueryBatch(b *testing.B) {
 func BenchmarkQuerySimple(b *testing.B) {
 	query := "select int(value) * 2, key + '_' + 'end' as kk, int(value) as ival where key between 'k' and 'l' limit 100"
 	data := generateChunk(1000)
-	qtxn := newMockQueryTxn(data)
+	qtxn := newMockQueryStorage(data)
 
 	b.ResetTimer()
 	for n := 0; n < b.N; n++ {
@@ -207,7 +207,7 @@ func BenchmarkQuerySimple(b *testing.B) {
 func BenchmarkQuerySimpleBatch(b *testing.B) {
 	query := "select int(value) * 2, key + '_' + 'end' as kk, int(value) as ival where key between 'k' and 'l' limit 100"
 	data := generateChunk(1000)
-	qtxn := newMockQueryTxn(data)
+	qtxn := newMockQueryStorage(data)
 
 	b.ResetTimer()
 	for n := 0; n < b.N; n++ {

@@ -165,12 +165,12 @@ var (
 type Column any
 
 type EmptyResultPlan struct {
-	Txn Txn
+	Storage Storage
 }
 
-func NewEmptyResultPlan(t Txn, f *FilterExec) Plan {
+func NewEmptyResultPlan(s Storage, f *FilterExec) Plan {
 	return &EmptyResultPlan{
-		Txn: t,
+		Storage: s,
 	}
 }
 

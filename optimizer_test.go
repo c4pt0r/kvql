@@ -20,7 +20,7 @@ func TestPlanBuilder(t *testing.T) {
 		},
 	}
 
-	txn := &fuzzQueryTxn{}
+	txn := &fuzzQueryStorage{}
 	for i, item := range tdata {
 		opt := NewOptimizer(item.query)
 		_, err := opt.buildPlan(txn)
@@ -37,7 +37,7 @@ func TestPlanBuilder(t *testing.T) {
 }
 
 func buildPlan(query string) (FinalPlan, error) {
-	txn := &fuzzQueryTxn{}
+	txn := &fuzzQueryStorage{}
 	opt := NewOptimizer(query)
 	return opt.buildPlan(txn)
 }

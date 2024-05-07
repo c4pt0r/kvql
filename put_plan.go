@@ -6,7 +6,7 @@ import (
 )
 
 type PutPlan struct {
-	Txn      Txn
+	Storage  Storage
 	KVPairs  []*PutKVPair
 	executed bool
 }
@@ -85,13 +85,13 @@ func (p *PutPlan) execute(ctx *ExecuteCtx) (int, error) {
 	if nkvps == 0 {
 		return 0, nil
 	} else if nkvps == 1 {
-		err := p.Txn.Put(kvps[0].Key, kvps[0].Value)
+		err := p.Storage.Put(kvps[0].Key, kvps[0].Value)
 		if err != nil {
 			return 0, err
 		}
 		return 1, nil
 	} else {
-		err := p.Txn.BatchPut(kvps)
+		err := p.Storage.BatchPut(kvps)
 		if err != nil {
 			return 0, err
 		}

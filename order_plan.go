@@ -9,7 +9,7 @@ import (
 )
 
 type FinalOrderPlan struct {
-	Txn        Txn
+	Storage    Storage
 	Orders     []OrderField
 	FieldNames []string
 	FieldTypes []Type

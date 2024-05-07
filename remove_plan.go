@@ -6,7 +6,7 @@ import (
 )
 
 type RemovePlan struct {
-	Txn      Txn
+	Storage  Storage
 	Keys     []Expression
 	executed bool
 }
@@ -79,13 +79,13 @@ func (p *RemovePlan) execute(ctx *ExecuteCtx) (int, error) {
 	if nks == 0 {
 		return 0, nil
 	} else if nks == 1 {
-		err := p.Txn.Delete(keys[0])
+		err := p.Storage.Delete(keys[0])
 		if err != nil {
 			return 0, err
 		}
 		return 1, nil
 	} else {
-		err := p.Txn.BatchDelete(keys)
+		err := p.Storage.BatchDelete(keys)
 		if err != nil {
 			return 0, err
 		}
