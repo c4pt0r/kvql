@@ -48,6 +48,8 @@ func FuzzSQLParser(f *testing.F) {
 		"put ('k1', 'v1'), ('k1', 'V_' + upper(key)), ('k3', lower('V3'))",
 		"remove 'k1', 'k2'",
 		"delete where key ^='prefix' and value = 'v2'",
+		"delete where key in ('k1', 'k2')",
+		"delete where (key = 'k1' | key = 'k2') and key ^= 'k'",
 	}
 
 	for _, t := range tests {

@@ -35,3 +35,49 @@ func TestPlanBuilder(t *testing.T) {
 		}
 	}
 }
+
+func buildPlan(query string) (FinalPlan, error) {
+	txn := &fuzzQueryTxn{}
+	opt := NewOptimizer(query)
+	return opt.buildPlan(txn)
+}
+
+func TestOptimizeDelete(t *testing.T) {
+	queries := []string{
+		"delete where key in ('k1', 'k2')",
+		"delete where key = 'k1' | key = 'k2'",
+	}
+	for _, query := range queries {
+		plan, err := buildPlan(query)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if p, ok := plan.(*RemovePlan); ok {
+			if len(p.Keys) != 2 {
+				t.Fatal("Remove plan should contains 2 keys")
+			}
+		} else {
+			t.Fatal("Should optimize as remove plan")
+		}
+	}
+}
+
+func TestOptimizeDelete2(t *testing.T) {
+	queries := []string{
+		"delete where key in ('k1', 'k2') and upper(key) = 'K1'",
+	}
+	for _, query := range queries {
+		plan, err := buildPlan(query)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if p, ok := plan.(*DeletePlan); ok {
+			cp := p.ChildPlan
+			if _, ok := cp.(*MultiGetPlan); !ok {
+				t.Fatal("Should optimize as multi get plan")
+			}
+		} else {
+			t.Fatal("Should optimize as delete plan")
+		}
+	}
+}
