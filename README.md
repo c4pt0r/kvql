@@ -1,5 +1,7 @@
 # kvql
 
+[![GoDoc](https://pkg.go.dev/badge/github.com/c4pt0r/kvql?utm_source=godoc)](https://pkg.go.dev/github.com/c4pt0r/kvql)
+
 A SQL-like query language on general Key-Value DB
 
 ## Syntax
