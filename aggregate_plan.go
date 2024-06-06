@@ -315,7 +315,7 @@ func (a *AggregatePlan) createAggrRow(kvp KVPair, ctx *ExecuteCtx) ([]*AggrPlanF
 
 func (a *AggregatePlan) Batch(ctx *ExecuteCtx) ([][]Column, error) {
 	if !a.prepared {
-		err := a.prepareBatch(nil)
+		err := a.prepareBatch(ctx)
 		if err != nil {
 			return nil, err
 		}
