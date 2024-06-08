@@ -321,7 +321,7 @@ func (a *AggregatePlan) Batch(ctx *ExecuteCtx) ([][]Column, error) {
 		}
 	}
 	if a.Limit < 0 {
-		return a.batch(nil)
+		return a.batch(ctx)
 	}
 	var (
 		rows   [][]Column
@@ -332,7 +332,7 @@ func (a *AggregatePlan) Batch(ctx *ExecuteCtx) ([][]Column, error) {
 	)
 	for a.skips < a.Start {
 		restSkips := a.Start - a.skips
-		rows, err = a.batch(nil)
+		rows, err = a.batch(ctx)
 		if err != nil {
 			return nil, err
 		}
@@ -363,7 +363,7 @@ func (a *AggregatePlan) Batch(ctx *ExecuteCtx) ([][]Column, error) {
 		return ret, nil
 	}
 	for !finish {
-		rows, err = a.batch(nil)
+		rows, err = a.batch(ctx)
 		if err != nil {
 			return nil, err
 		}
