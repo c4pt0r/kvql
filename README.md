@@ -41,7 +41,7 @@ WhereConditions ::= "!"? Expression
 
 Expression ::= "("? BinaryExpression | UnaryExpression ")"?
 
-UnaryExpression ::= KeyValueField | String | Number | Boolean | FunctionCall
+UnaryExpression ::= KeyValueField | String | Number | Boolean | FunctionCall | FieldName
 
 BinaryExpression ::= Expression Operator Expression |
                      Expression "BETWEEN" Expression "AND" Expression |
