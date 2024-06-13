@@ -252,13 +252,30 @@ func (e *FunctionCallExpr) Check(ctx *CheckCtx) error {
 		return NewSyntaxError(e.Name.GetPos(), "Invalid function name")
 	}
 	if len(e.Args) > 0 {
-		for _, a := range e.Args {
+		for i, a := range e.Args {
+			a = e.tryRewriteExpr(i, ctx)
 			if err := a.Check(ctx); err != nil {
 				return err
 			}
 		}
 	}
 	return nil
+}
+
+func (e *FunctionCallExpr) tryRewriteExpr(idx int, ctx *CheckCtx) Expression {
+	ret := e.Args[idx]
+	switch aexp := ret.(type) {
+	case *NameExpr:
+		if nexpr, have := ctx.GetNamedExpr(aexp.Data); have {
+			narg := &FieldReferenceExpr{
+				Name:      aexp,
+				FieldExpr: nexpr,
+			}
+			e.Args[idx] = narg
+			return narg
+		}
+	}
+	return ret
 }
 
 func (e *NameExpr) Check(ctx *CheckCtx) error {

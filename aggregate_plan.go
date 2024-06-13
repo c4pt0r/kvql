@@ -194,6 +194,9 @@ func (a *AggregatePlan) prepare(ctx *ExecuteCtx) error {
 			a.aggrRows = append(a.aggrRows, row)
 		}
 		err = a.updateRowAggrFunc(row, kvp, ctx)
+		if err != nil {
+			return err
+		}
 	}
 	a.prepared = true
 	return nil
