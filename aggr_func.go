@@ -1,7 +1,9 @@
 package kvql
 
 import (
+	"encoding/json"
 	"strconv"
+	"strings"
 
 	"github.com/beorn7/perks/quantile"
 )
@@ -13,6 +15,8 @@ var (
 	_ AggrFunction = (*aggrMinFunc)(nil)
 	_ AggrFunction = (*aggrMaxFunc)(nil)
 	_ AggrFunction = (*aggrQuantileFunc)(nil)
+	_ AggrFunction = (*aggrJsonArrayAggFunc)(nil)
+	_ AggrFunction = (*aggrGroupConcatFunc)(nil)
 )
 
 func convertToNumber(value any) (int64, float64, bool) {
@@ -356,4 +360,95 @@ func (f *aggrQuantileFunc) Clone() AggrFunction {
 			percent: 0.0001,
 		}),
 	}
+}
+
+// Aggr json_arrayagg
+type aggrJsonArrayAggFunc struct {
+	args  []Expression
+	items []any
+}
+
+func newAggrJsonArrayAggFunc(args []Expression) (AggrFunction, error) {
+	return &aggrJsonArrayAggFunc{
+		args:  args,
+		items: make([]any, 0, 10),
+	}, nil
+}
+
+func (f *aggrJsonArrayAggFunc) Clone() AggrFunction {
+	ret, _ := newAggrJsonArrayAggFunc(f.args)
+	return ret
+}
+
+func (f *aggrJsonArrayAggFunc) Complete() (any, error) {
+	ret, err := json.Marshal(f.items)
+	if err != nil {
+		return nil, err
+	}
+	return string(ret), nil
+}
+
+func (f *aggrJsonArrayAggFunc) Update(kv KVPair, args []Expression, ctx *ExecuteCtx) error {
+	rarg, err := args[0].Execute(kv, ctx)
+	if err != nil {
+		return err
+	}
+	switch val := rarg.(type) {
+	case int8, int16, int, int32, int64,
+		uint8, uint16, uint, uint32, uint64:
+		f.items = append(f.items, val)
+	case float32, float64:
+		f.items = append(f.items, val)
+	case []byte:
+		f.items = append(f.items, string(val))
+	case bool:
+		f.items = append(f.items, val)
+	default:
+		f.items = append(f.items, toString(val))
+	}
+	return nil
+}
+
+// Aggr group_concat
+type aggrGroupConcatFunc struct {
+	args  []Expression
+	sep   string
+	items []string
+}
+
+func newAggrGroupConcatFunc(args []Expression) (AggrFunction, error) {
+	if args[1].ReturnType() != TSTR {
+		return nil, NewSyntaxError(args[1].GetPos(), "group concat second parameter require string type")
+	}
+	svar, err := args[1].Execute(NewKVP(nil, nil), nil)
+	if err != nil {
+		return nil, err
+	}
+	return &aggrGroupConcatFunc{
+		args:  args,
+		sep:   toString(svar),
+		items: make([]string, 0, 10),
+	}, nil
+}
+
+func (f *aggrGroupConcatFunc) Clone() AggrFunction {
+	return &aggrGroupConcatFunc{
+		args:  f.args,
+		sep:   f.sep,
+		items: make([]string, 0, 10),
+	}
+}
+
+func (f *aggrGroupConcatFunc) Complete() (any, error) {
+	return strings.Join(f.items, f.sep), nil
+}
+
+func (f *aggrGroupConcatFunc) Update(kv KVPair, args []Expression, ctx *ExecuteCtx) error {
+	rarg, err := args[0].Execute(kv, ctx)
+	if err != nil {
+		return err
+	}
+	sval := toString(rarg)
+	f.items = append(f.items, sval)
+	return nil
 }
