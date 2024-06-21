@@ -357,3 +357,12 @@ func getListLength(data any) (int, error) {
 	}
 	return 0, fmt.Errorf("invalid type")
 }
+
+func funcStrlen(kv KVPair, args []Expression, ctx *ExecuteCtx) (any, error) {
+	rarg, err := args[0].Execute(kv, ctx)
+	if err != nil {
+		return nil, err
+	}
+	ret := toString(rarg)
+	return int64(len(ret)), nil
+}

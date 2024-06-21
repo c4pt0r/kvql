@@ -225,6 +225,7 @@ fmt.Println(output)
 | int(value: any): int | convert value into integer, if cannot convert to integer just return error
 | float(value: any): float | convert value into float, if cannot convert to float just return error |
 | str(value: any): str | convert value into string |
+| strlen(value: any): int | convert value into string and then calculate string length |
 | is_int(value: any): bool | return is value can be converted into integer |
 | is_float(value: any): bool | return is value can be converted into float |
 | substr(value: str, start: int, end: int): str | return substring of value from `start` position to `end` position |
@@ -250,3 +251,5 @@ fmt.Println(output)
 | min(value: int): int | Find the minimum value by group |
 | max(value: int): int | Find the maxmum value by group |
 | quantile(value: float, percent: float): float | Calculate the Quantile by group |
+| json_arrayagg(value: any): string | Aggregate all values into a JSON array |
+| group_concat(value: any, seperator: str): string | Join all values into a string by seperator |

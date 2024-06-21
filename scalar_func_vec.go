@@ -338,3 +338,17 @@ func funcLenVec(chunk []KVPair, args []Expression, ctx *ExecuteCtx) ([]any, erro
 	}
 	return rarg, nil
 }
+
+func funcStrlenVec(chunk []KVPair, args []Expression, ctx *ExecuteCtx) ([]any, error) {
+	rarg, err := args[0].ExecuteBatch(chunk, ctx)
+	if err != nil {
+		return nil, err
+	}
+	var (
+		ret = make([]any, len(chunk))
+	)
+	for i := 0; i < len(chunk); i++ {
+		ret[i] = int64(len(toString(rarg[i])))
+	}
+	return ret, nil
+}

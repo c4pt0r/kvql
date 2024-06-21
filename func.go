@@ -25,18 +25,21 @@ var (
 		"ilist":      &Function{"ilist", 1, true, TLIST, funcIntList, funcIntListVec},
 		"len":        &Function{"len", 1, false, TNUMBER, funcLen, funcLenVec},
 		"join":       &Function{"join", 2, true, TSTR, funcJoin, funcJoinVec},
+		"strlen":     &Function{"strlen", 1, false, TNUMBER, funcStrlen, funcStrlenVec},
 
 		"cosine_distance": &Function{"cosine_distance", 2, false, TNUMBER, funcCosineDistance, funcCosineDistanceVec},
 		"l2_distance":     &Function{"l2_distance", 2, false, TNUMBER, funcL2Distance, funcL2DistanceVec},
 	}
 
 	aggrFuncMap = map[string]*AggrFunc{
-		"count":    &AggrFunc{"count", 1, false, TNUMBER, newAggrCountFunc},
-		"sum":      &AggrFunc{"sum", 1, false, TNUMBER, newAggrSumFunc},
-		"avg":      &AggrFunc{"avg", 1, false, TNUMBER, newAggrAvgFunc},
-		"min":      &AggrFunc{"min", 1, false, TNUMBER, newAggrMinFunc},
-		"max":      &AggrFunc{"max", 1, false, TNUMBER, newAggrMaxFunc},
-		"quantile": &AggrFunc{"quantile", 2, false, TNUMBER, newAggrQuantileFunc},
+		"count":         &AggrFunc{"count", 1, false, TNUMBER, newAggrCountFunc},
+		"sum":           &AggrFunc{"sum", 1, false, TNUMBER, newAggrSumFunc},
+		"avg":           &AggrFunc{"avg", 1, false, TNUMBER, newAggrAvgFunc},
+		"min":           &AggrFunc{"min", 1, false, TNUMBER, newAggrMinFunc},
+		"max":           &AggrFunc{"max", 1, false, TNUMBER, newAggrMaxFunc},
+		"quantile":      &AggrFunc{"quantile", 2, false, TNUMBER, newAggrQuantileFunc},
+		"json_arrayagg": &AggrFunc{"json_arrayagg", 1, false, TSTR, newAggrJsonArrayAggFunc},
+		"group_concat":  &AggrFunc{"group_concat", 2, false, TSTR, newAggrGroupConcatFunc},
 	}
 )
 
